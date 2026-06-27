@@ -9,6 +9,11 @@ interface SqlBlockRow {
   hpath: string;
 }
 
+interface KramdownBlock {
+  markdown?: string;
+  kramdown?: string;
+}
+
 export class SiYuanRepository implements SiYuanGateway {
   async listTodoBlocks(range: SyncRange, limit: number): Promise<SiYuanTodoBlock[]> {
     const sql = buildTodoBlockSql(range, limit);
@@ -30,11 +35,15 @@ export class SiYuanRepository implements SiYuanGateway {
   }
 
   async markBlockCompleted(blockId: string): Promise<void> {
-    const block = await kernelApi<{ markdown: string }>("/api/block/getBlockKramdown", { id: blockId });
+    const block = await kernelApi<KramdownBlock>("/api/block/getBlockKramdown", { id: blockId });
+    const markdown = block.kramdown ?? block.markdown;
+    if (!markdown) {
+      throw new Error("SiYuan getBlockKramdown returned no kramdown content");
+    }
     await kernelApi<unknown>("/api/block/updateBlock", {
       id: blockId,
       dataType: "markdown",
-      data: markTodoCompleted(block.markdown)
+      data: markTodoCompleted(markdown)
     });
   }
 
