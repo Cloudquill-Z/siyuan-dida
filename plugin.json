@@ -1,0 +1,29 @@
+{
+  "name": "siyuan-dida",
+  "author": "lance",
+  "url": "https://github.com/lance/siyuan-dida",
+  "version": "0.1.0",
+  "minAppVersion": "3.1.0",
+  "backends": ["darwin", "windows", "linux"],
+  "frontends": ["desktop", "desktop-window"],
+  "disabledInPublish": true,
+  "displayName": {
+    "default": "Dida Sync",
+    "zh_CN": "滴答同步"
+  },
+  "description": {
+    "default": "Sync SiYuan Markdown todos with Dida through the local dida CLI.",
+    "zh_CN": "通过本机 dida CLI 同步思源 Markdown 待办与滴答清单。"
+  },
+  "readme": {
+    "default": "README.md",
+    "zh_CN": "README_zh_CN.md"
+  },
+  "funding": {
+    "openCollective": "",
+    "patreon": "",
+    "github": "",
+    "custom": []
+  },
+  "keywords": ["todo", "sync", "dida", "ticktick"]
+}

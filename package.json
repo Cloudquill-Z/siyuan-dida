@@ -1,0 +1,30 @@
+{
+  "name": "siyuan-dida",
+  "version": "0.1.0",
+  "description": "Sync SiYuan Markdown todos with Dida through the local dida CLI.",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "siyuan",
+    "dida",
+    "ticktick",
+    "todo",
+    "sync"
+  ],
+  "author": "lance",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^5.0.0",
+    "vitest": "^2.1.8"
+  },
+  "dependencies": {
+    "siyuan": "^1.1.9"
+  }
+}
