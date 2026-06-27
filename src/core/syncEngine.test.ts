@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
+import { taskHash } from "./hash";
 import { SyncEngine } from "./syncEngine";
-import type { DidaGateway, SiYuanGateway, SyncSettings, SiYuanTodoBlock } from "./types";
+import type { DidaGateway, SiYuanGateway, SyncRange, SyncSettings, SiYuanTodoBlock } from "./types";
 
 function settings(): SyncSettings {
   return {
@@ -33,11 +34,13 @@ function block(overrides: Partial<SiYuanTodoBlock>): SiYuanTodoBlock {
 class FakeSiYuan implements SiYuanGateway {
   public attrs: Array<{ blockId: string; attrs: Record<string, string> }> = [];
   public completed: string[] = [];
+  public listCalls: Array<{ range: SyncRange; limit: number; offset: number }> = [];
 
   constructor(public blocks: SiYuanTodoBlock[]) {}
 
-  async listTodoBlocks() {
-    return this.blocks;
+  async listTodoBlocks(range: SyncRange, limit: number, offset = 0) {
+    this.listCalls.push({ range, limit, offset });
+    return this.blocks.slice(offset, offset + limit);
   }
 
   async setBlockAttrs(blockId: string, attrs: Record<string, string>) {
@@ -151,5 +154,103 @@ describe("SyncEngine", () => {
     expect(result.failed).toBe(1);
     expect(result.failures[0].message).toContain("滴答已完成任务读取失败");
     expect(dida.created).toEqual([{ projectId: "project-1", title: "整理会议纪要" }]);
+  });
+
+  test("updates Dida title when a synced SiYuan todo title changes", async () => {
+    const siyuan = new FakeSiYuan([
+      block({
+        markdown: "- [ ] 整理新版会议纪要",
+        attrs: {
+          "custom-dida-task-id": "task-1",
+          "custom-dida-project-id": "project-1",
+          "custom-dida-last-hash": taskHash("整理会议纪要", false)
+        }
+      })
+    ]);
+    const dida = new FakeDida();
+
+    const result = await new SyncEngine(siyuan, dida).sync(settings());
+
+    expect(result.updated).toBe(1);
+    expect(dida.updated).toEqual([{ projectId: "project-1", taskId: "task-1", title: "整理新版会议纪要" }]);
+  });
+
+  test("uses range cursor offset and returns the next cursor", async () => {
+    const testSettings = settings();
+    testSettings.maxTasksPerRun = 2;
+    testSettings.ranges[0].cursorOffset = 2;
+    const siyuan = new FakeSiYuan([
+      block({ id: "block-1", markdown: "- [ ] 任务 1" }),
+      block({ id: "block-2", markdown: "- [ ] 任务 2" }),
+      block({ id: "block-3", markdown: "- [ ] 任务 3" }),
+      block({ id: "block-4", markdown: "- [ ] 任务 4" }),
+      block({ id: "block-5", markdown: "- [ ] 任务 5" })
+    ]);
+    const dida = new FakeDida();
+
+    const result = await new SyncEngine(siyuan, dida).sync(testSettings);
+
+    expect(siyuan.listCalls.map((call) => call.offset)).toEqual([2]);
+    expect(dida.created.map((item) => item.title)).toEqual(["任务 3", "任务 4"]);
+    expect(result.rangeResults[0]).toMatchObject({ cursorOffset: 2, nextCursorOffset: 4, hasMore: true });
+    expect(result.rangeCursorOffsets).toEqual({ "range-1": 4 });
+  });
+
+  test("wraps the range cursor to the first page when the offset reaches the end", async () => {
+    const testSettings = settings();
+    testSettings.maxTasksPerRun = 2;
+    testSettings.ranges[0].cursorOffset = 10;
+    const siyuan = new FakeSiYuan([
+      block({ id: "block-1", markdown: "- [ ] 任务 1" }),
+      block({ id: "block-2", markdown: "- [ ] 任务 2" }),
+      block({ id: "block-3", markdown: "- [ ] 任务 3" })
+    ]);
+    const dida = new FakeDida();
+
+    const result = await new SyncEngine(siyuan, dida).sync(testSettings);
+
+    expect(siyuan.listCalls.map((call) => call.offset)).toEqual([10, 0]);
+    expect(dida.created.map((item) => item.title)).toEqual(["任务 1", "任务 2"]);
+    expect(result.rangeResults[0]).toMatchObject({ cursorOffset: 0, nextCursorOffset: 2, hasMore: true });
+    expect(result.rangeCursorOffsets).toEqual({ "range-1": 2 });
+  });
+
+  test("checks a recent priority window while rotating through older candidates", async () => {
+    const testSettings = settings();
+    testSettings.maxTasksPerRun = 20;
+    testSettings.ranges[0].cursorOffset = 50;
+    const blocks = Array.from({ length: 80 }, (_, index) => block({ id: `block-${index + 1}`, markdown: `- [ ] 任务 ${index + 1}` }));
+    const siyuan = new FakeSiYuan(blocks);
+    const dida = new FakeDida();
+
+    const result = await new SyncEngine(siyuan, dida).sync(testSettings);
+
+    expect(siyuan.listCalls.map((call) => ({ limit: call.limit, offset: call.offset }))).toEqual([
+      { limit: 5, offset: 0 },
+      { limit: 15, offset: 50 }
+    ]);
+    expect(dida.created.map((item) => item.title)).toContain("任务 1");
+    expect(dida.created.map((item) => item.title)).toContain("任务 51");
+    expect(result.rangeResults[0]).toMatchObject({ cursorOffset: 50, nextCursorOffset: 65, hasMore: true });
+  });
+
+  test("skips unchanged synced completed todos without completing them again", async () => {
+    const siyuan = new FakeSiYuan([
+      block({
+        markdown: "- [x] 整理会议纪要",
+        attrs: {
+          "custom-dida-task-id": "task-1",
+          "custom-dida-project-id": "project-1",
+          "custom-dida-last-hash": taskHash("整理会议纪要", true)
+        }
+      })
+    ]);
+    const dida = new FakeDida();
+
+    const result = await new SyncEngine(siyuan, dida).sync(settings());
+
+    expect(result.skipped).toBe(1);
+    expect(result.completed).toBe(0);
+    expect(dida.completed).toEqual([]);
   });
 });

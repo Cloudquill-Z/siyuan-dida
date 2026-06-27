@@ -1,6 +1,6 @@
 import { taskHash } from "./hash";
 import { parseTodoMarkdown } from "./todoParser";
-import type { DidaGateway, SiYuanGateway, SyncEvent, SyncRangeResult, SyncResult, SyncSettings, SiYuanTodoBlock } from "./types";
+import type { DidaGateway, SiYuanGateway, SyncEvent, SyncRange, SyncRangeResult, SyncResult, SyncSettings, SiYuanTodoBlock } from "./types";
 
 const TASK_ID_ATTR = "custom-dida-task-id";
 const PROJECT_ID_ATTR = "custom-dida-project-id";
@@ -19,6 +19,7 @@ function emptyResult(): SyncResult {
     skipped: 0,
     scanned: 0,
     rangeResults: [],
+    rangeCursorOffsets: {},
     events: [],
     failures: [],
     startedAt: now,
@@ -82,7 +83,20 @@ export class SyncEngine {
     }
 
     for (const range of settings.ranges) {
-      const blocks = await this.siyuan.listTodoBlocks(range, settings.maxTasksPerRun);
+      let cursorOffset = normalizeOffset(range.cursorOffset);
+      const page = await this.listRangePage(range, settings.maxTasksPerRun, cursorOffset);
+      let blocks = page.blocks;
+      let rotatingCount = page.rotatingCount;
+      let rotatingLimit = page.rotatingLimit;
+      if (rotatingCount === 0 && cursorOffset > 0) {
+        addEvent(result, "debug", `范围「${range.name}」游标已到末尾，回到开头继续扫描`, { rangeId: range.id });
+        cursorOffset = 0;
+        blocks = await this.siyuan.listTodoBlocks(range, settings.maxTasksPerRun, cursorOffset);
+        rotatingCount = blocks.length;
+        rotatingLimit = settings.maxTasksPerRun;
+      }
+      const hasMore = rotatingCount >= rotatingLimit;
+      const nextCursorOffset = hasMore ? cursorOffset + rotatingCount : 0;
       const rangeResult: SyncRangeResult = {
         rangeId: range.id,
         rangeName: range.name,
@@ -94,14 +108,24 @@ export class SyncEngine {
         completed: 0,
         writtenBack: 0,
         failed: 0,
-        skipped: 0
+        skipped: 0,
+        cursorOffset,
+        nextCursorOffset,
+        hasMore
       };
+      result.rangeCursorOffsets[range.id] = nextCursorOffset;
       result.scanned += blocks.length;
       result.rangeResults.push(rangeResult);
       addEvent(result, "info", `范围「${range.name}」扫描到 ${blocks.length} 个候选任务`, { rangeId: range.id });
       for (const block of blocks) {
         await this.syncBlock(block, range.targetProjectId, completedTaskIds, result, rangeResult);
       }
+      addEvent(
+        result,
+        "debug",
+        hasMore ? `范围「${range.name}」下一轮从第 ${nextCursorOffset + 1} 个候选任务继续` : `范围「${range.name}」已扫到末尾，下轮从开头继续`,
+        { rangeId: range.id }
+      );
     }
 
     result.finishedAt = new Date().toISOString();
@@ -159,6 +183,16 @@ export class SyncEngine {
         return;
       }
 
+      if (block.attrs[LAST_HASH_ATTR] === currentHash) {
+        result.skipped += 1;
+        rangeResult.skipped += 1;
+        addEvent(result, "debug", `跳过未变化的已绑定任务：${parsed.title}`, {
+          blockId: block.id,
+          rangeId: rangeResult.rangeId
+        });
+        return;
+      }
+
       if (parsed.checked) {
         await this.dida.completeTask(existing.projectId, existing.taskId);
         await this.siyuan.setBlockAttrs(block.id, attrsFor(existing.taskId, existing.projectId, currentHash));
@@ -182,4 +216,39 @@ export class SyncEngine {
       addEvent(result, "error", (error as Error).message, { blockId: block.id, rangeId: rangeResult.rangeId });
     }
   }
+
+  private async listRangePage(range: SyncRange, limit: number, cursorOffset: number) {
+    if (cursorOffset <= 0 || limit < 20) {
+      const blocks = await this.siyuan.listTodoBlocks(range, limit, cursorOffset);
+      return { blocks, rotatingCount: blocks.length, rotatingLimit: limit };
+    }
+
+    const priorityLimit = Math.max(1, Math.floor(limit / 4));
+    const rotatingLimit = limit - priorityLimit;
+    const priorityBlocks = await this.siyuan.listTodoBlocks(range, priorityLimit, 0);
+    const rotatingBlocks = await this.siyuan.listTodoBlocks(range, rotatingLimit, cursorOffset);
+    return {
+      blocks: uniqueBlocks([...priorityBlocks, ...rotatingBlocks]),
+      rotatingCount: rotatingBlocks.length,
+      rotatingLimit
+    };
+  }
+}
+
+function normalizeOffset(value: number | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.max(0, Math.floor(value));
+}
+
+function uniqueBlocks(blocks: SiYuanTodoBlock[]): SiYuanTodoBlock[] {
+  const seen = new Set<string>();
+  return blocks.filter((block) => {
+    if (seen.has(block.id)) {
+      return false;
+    }
+    seen.add(block.id);
+    return true;
+  });
 }

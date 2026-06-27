@@ -25,7 +25,8 @@ describe("prepareRangesForSave", () => {
           notebookId: "box-1",
           hpathPrefix: "/工作",
           targetProjectId: "project-1",
-          targetProjectName: "工作清单"
+          targetProjectName: "工作清单",
+          cursorOffset: 400
         }
       ])
     ).toEqual([
@@ -36,7 +37,8 @@ describe("prepareRangesForSave", () => {
         hpathPrefix: "/工作",
         includeChildren: true,
         targetProjectId: "project-1",
-        targetProjectName: "工作清单"
+        targetProjectName: "工作清单",
+        cursorOffset: 400
       }
     ]);
   });

@@ -13,8 +13,14 @@ export function formatSyncLogs(logs: SyncResult[]): string {
       ];
 
       for (const range of log.rangeResults ?? []) {
+        const cursorText =
+          range.hasMore === undefined
+            ? ""
+            : range.hasMore
+              ? `，本轮从第 ${range.cursorOffset + 1} 个开始，下轮从第 ${range.nextCursorOffset + 1} 个继续`
+              : "，已扫到末尾";
         lines.push(
-          `范围 ${range.rangeName} (${range.hpathPrefix})：扫描 ${range.scanned}，新增 ${range.created}，更新 ${range.updated}，完成 ${range.completed}，回写 ${range.writtenBack}，跳过 ${range.skipped}，失败 ${range.failed}`
+          `范围 ${range.rangeName} (${range.hpathPrefix})：扫描 ${range.scanned}，新增 ${range.created}，更新 ${range.updated}，完成 ${range.completed}，回写 ${range.writtenBack}，跳过 ${range.skipped}，失败 ${range.failed}${cursorText}`
         );
       }
 

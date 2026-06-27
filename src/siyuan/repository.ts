@@ -15,8 +15,8 @@ interface KramdownBlock {
 }
 
 export class SiYuanRepository implements SiYuanGateway {
-  async listTodoBlocks(range: SyncRange, limit: number): Promise<SiYuanTodoBlock[]> {
-    const sql = buildTodoBlockSql(range, limit);
+  async listTodoBlocks(range: SyncRange, limit: number, offset = 0): Promise<SiYuanTodoBlock[]> {
+    const sql = buildTodoBlockSql(range, limit, offset);
     const rows = await kernelApi<SqlBlockRow[]>("/api/query/sql", { stmt: sql });
     const blocks = await Promise.all(
       rows.map(async (row) => ({
@@ -52,7 +52,7 @@ export class SiYuanRepository implements SiYuanGateway {
   }
 }
 
-export function buildTodoBlockSql(range: SyncRange, limit: number): string {
+export function buildTodoBlockSql(range: SyncRange, limit: number, offset = 0): string {
   const hpathClause = range.includeChildren
     ? `hpath LIKE '${escapeSqlLike(range.hpathPrefix)}%'`
     : `hpath = '${escapeSql(range.hpathPrefix)}'`;
@@ -73,7 +73,7 @@ export function buildTodoBlockSql(range: SyncRange, limit: number): string {
     ORDER BY
       CASE WHEN markdown LIKE '- [ ] %' OR markdown LIKE '* [ ] %' THEN 0 ELSE 1 END,
       updated DESC
-    LIMIT ${Math.max(1, limit)}
+    LIMIT ${Math.max(1, limit)} OFFSET ${Math.max(0, offset)}
   `;
 }
 

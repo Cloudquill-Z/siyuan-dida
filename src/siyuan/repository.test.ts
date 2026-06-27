@@ -17,13 +17,15 @@ describe("buildTodoBlockSql", () => {
         targetProjectId: "project-1",
         targetProjectName: "工作"
       },
-      200
+      200,
+      400
     );
 
     expect(sql).toContain("subtype = 't'");
     expect(sql).toContain("ial LIKE '%custom-dida-task-id%'");
     expect(sql).toContain("ORDER BY");
     expect(sql).toContain("CASE WHEN markdown LIKE '- [ ] %'");
+    expect(sql).toContain("LIMIT 200 OFFSET 400");
   });
 });
 

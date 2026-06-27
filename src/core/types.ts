@@ -6,6 +6,7 @@ export interface SyncRange {
   includeChildren: boolean;
   targetProjectId: string;
   targetProjectName: string;
+  cursorOffset?: number;
 }
 
 export interface SyncSettings {
@@ -30,6 +31,7 @@ export interface SyncResult {
   skipped: number;
   scanned: number;
   rangeResults: SyncRangeResult[];
+  rangeCursorOffsets: Record<string, number>;
   events: SyncEvent[];
   failures: Array<{ blockId?: string; message: string }>;
   startedAt: string;
@@ -48,6 +50,9 @@ export interface SyncRangeResult {
   writtenBack: number;
   failed: number;
   skipped: number;
+  cursorOffset: number;
+  nextCursorOffset: number;
+  hasMore: boolean;
 }
 
 export interface SyncEvent {
@@ -59,7 +64,7 @@ export interface SyncEvent {
 }
 
 export interface SiYuanGateway {
-  listTodoBlocks(range: SyncRange, limit: number): Promise<SiYuanTodoBlock[]>;
+  listTodoBlocks(range: SyncRange, limit: number, offset?: number): Promise<SiYuanTodoBlock[]>;
   setBlockAttrs(blockId: string, attrs: Record<string, string>): Promise<void>;
   markBlockCompleted(blockId: string): Promise<void>;
 }

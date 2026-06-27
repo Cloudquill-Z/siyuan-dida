@@ -8,7 +8,8 @@ export function createEmptyRange(index: number): SyncRange {
     hpathPrefix: "",
     includeChildren: true,
     targetProjectId: "",
-    targetProjectName: ""
+    targetProjectName: "",
+    cursorOffset: 0
   };
 }
 
@@ -27,7 +28,8 @@ function normalizeRange(range: SyncRange, index: number): SyncRange {
     hpathPrefix: range.hpathPrefix.trim(),
     includeChildren: range.includeChildren,
     targetProjectId: range.targetProjectId.trim(),
-    targetProjectName: range.targetProjectName.trim()
+    targetProjectName: range.targetProjectName.trim(),
+    cursorOffset: normalizeCursorOffset(range.cursorOffset)
   };
 }
 
@@ -46,4 +48,11 @@ function validateRange(range: SyncRange, index: number): SyncRange {
     throw new Error(`同步范围 ${index} 缺少滴答清单`);
   }
   return range;
+}
+
+function normalizeCursorOffset(value: number | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.max(0, Math.floor(value));
 }

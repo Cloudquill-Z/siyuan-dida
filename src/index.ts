@@ -123,6 +123,10 @@ export default class SiyuanDidaPlugin extends Plugin {
         maxTasksPerRun: this.settings.maxTasksPerRun || DEFAULT_SETTINGS.maxTasksPerRun,
         ranges: this.settings.ranges
       });
+      this.settings.ranges = this.settings.ranges.map((range) => ({
+        ...range,
+        cursorOffset: result.rangeCursorOffsets[range.id] ?? range.cursorOffset ?? 0
+      }));
       this.settings.logs = [result, ...this.settings.logs].slice(0, 20);
       await this.saveSettings();
       this.updateStatus(`滴答：${new Date().toLocaleTimeString()} ${result.failed > 0 ? "有失败" : "已同步"}`);
@@ -160,6 +164,7 @@ function createErrorSyncResult(message: string): SyncResult {
     skipped: 0,
     scanned: 0,
     rangeResults: [],
+    rangeCursorOffsets: {},
     events: [{ time: now, level: "error", message }],
     failures: [{ message }],
     startedAt: now,
