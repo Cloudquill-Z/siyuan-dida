@@ -7,6 +7,8 @@ const PROJECT_ID_ATTR = "custom-dida-project-id";
 const LAST_SYNC_ATTR = "custom-dida-last-sync";
 const LAST_HASH_ATTR = "custom-dida-last-hash";
 const SYNC_STATE_ATTR = "custom-dida-sync-state";
+const SYNC_STATE_SYNCED = "synced";
+const SYNC_STATE_COMPLETED_SYNCED = "completed-synced";
 
 function emptyResult(): SyncResult {
   const now = new Date().toISOString();
@@ -50,13 +52,13 @@ function binding(block: SiYuanTodoBlock) {
   return { taskId, projectId };
 }
 
-function attrsFor(taskId: string, projectId: string, hash: string): Record<string, string> {
+function attrsFor(taskId: string, projectId: string, hash: string, syncState = SYNC_STATE_SYNCED): Record<string, string> {
   return {
     [TASK_ID_ATTR]: taskId,
     [PROJECT_ID_ATTR]: projectId,
     [LAST_SYNC_ATTR]: new Date().toISOString(),
     [LAST_HASH_ATTR]: hash,
-    [SYNC_STATE_ATTR]: "synced"
+    [SYNC_STATE_ATTR]: syncState
   };
 }
 
@@ -176,7 +178,7 @@ export class SyncEngine {
 
       if (!parsed.checked && completedTaskIds.has(existing.taskId)) {
         await this.siyuan.markBlockCompleted(block.id);
-        await this.siyuan.setBlockAttrs(block.id, attrsFor(existing.taskId, existing.projectId, taskHash(parsed.title, true)));
+        await this.siyuan.setBlockAttrs(block.id, attrsFor(existing.taskId, existing.projectId, taskHash(parsed.title, true), SYNC_STATE_COMPLETED_SYNCED));
         result.writtenBack += 1;
         rangeResult.writtenBack += 1;
         addEvent(result, "info", `滴答完成回写思源：${parsed.title}`, { blockId: block.id, rangeId: rangeResult.rangeId });
@@ -184,6 +186,13 @@ export class SyncEngine {
       }
 
       if (block.attrs[LAST_HASH_ATTR] === currentHash) {
+        if (parsed.checked && block.attrs[SYNC_STATE_ATTR] !== SYNC_STATE_COMPLETED_SYNCED) {
+          await this.siyuan.setBlockAttrs(block.id, attrsFor(existing.taskId, existing.projectId, currentHash, SYNC_STATE_COMPLETED_SYNCED));
+          addEvent(result, "debug", `归档已完成同步任务：${parsed.title}`, {
+            blockId: block.id,
+            rangeId: rangeResult.rangeId
+          });
+        }
         result.skipped += 1;
         rangeResult.skipped += 1;
         addEvent(result, "debug", `跳过未变化的已绑定任务：${parsed.title}`, {
@@ -195,7 +204,7 @@ export class SyncEngine {
 
       if (parsed.checked) {
         await this.dida.completeTask(existing.projectId, existing.taskId);
-        await this.siyuan.setBlockAttrs(block.id, attrsFor(existing.taskId, existing.projectId, currentHash));
+        await this.siyuan.setBlockAttrs(block.id, attrsFor(existing.taskId, existing.projectId, currentHash, SYNC_STATE_COMPLETED_SYNCED));
         result.completed += 1;
         rangeResult.completed += 1;
         addEvent(result, "info", `思源完成同步到滴答：${parsed.title}`, { blockId: block.id, rangeId: rangeResult.rangeId });

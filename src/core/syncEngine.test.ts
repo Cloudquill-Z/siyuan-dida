@@ -122,6 +122,7 @@ describe("SyncEngine", () => {
 
     expect(result.completed).toBe(1);
     expect(dida.completed).toEqual([{ projectId: "project-1", taskId: "task-1" }]);
+    expect(siyuan.attrs[0].attrs["custom-dida-sync-state"]).toBe("completed-synced");
   });
 
   test("marks SiYuan todo completed when Dida task is completed", async () => {
@@ -141,6 +142,7 @@ describe("SyncEngine", () => {
 
     expect(result.writtenBack).toBe(1);
     expect(siyuan.completed).toEqual(["block-1"]);
+    expect(siyuan.attrs[0].attrs["custom-dida-sync-state"]).toBe("completed-synced");
   });
 
   test("continues syncing SiYuan changes when completed task lookup fails", async () => {
@@ -234,7 +236,7 @@ describe("SyncEngine", () => {
     expect(result.rangeResults[0]).toMatchObject({ cursorOffset: 50, nextCursorOffset: 65, hasMore: true });
   });
 
-  test("skips unchanged synced completed todos without completing them again", async () => {
+  test("archives unchanged legacy completed todos without completing them again", async () => {
     const siyuan = new FakeSiYuan([
       block({
         markdown: "- [x] 整理会议纪要",
@@ -252,5 +254,27 @@ describe("SyncEngine", () => {
     expect(result.skipped).toBe(1);
     expect(result.completed).toBe(0);
     expect(dida.completed).toEqual([]);
+    expect(siyuan.attrs[0].attrs["custom-dida-sync-state"]).toBe("completed-synced");
+  });
+
+  test("skips already archived completed todos without writing attrs again", async () => {
+    const siyuan = new FakeSiYuan([
+      block({
+        markdown: "- [x] 整理会议纪要",
+        attrs: {
+          "custom-dida-task-id": "task-1",
+          "custom-dida-project-id": "project-1",
+          "custom-dida-last-hash": taskHash("整理会议纪要", true),
+          "custom-dida-sync-state": "completed-synced"
+        }
+      })
+    ]);
+    const dida = new FakeDida();
+
+    const result = await new SyncEngine(siyuan, dida).sync(settings());
+
+    expect(result.skipped).toBe(1);
+    expect(dida.completed).toEqual([]);
+    expect(siyuan.attrs).toEqual([]);
   });
 });

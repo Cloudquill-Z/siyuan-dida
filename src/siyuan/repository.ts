@@ -58,6 +58,7 @@ export function buildTodoBlockSql(range: SyncRange, limit: number, offset = 0): 
     : `hpath = '${escapeSql(range.hpathPrefix)}'`;
   const incompleteClause = `(markdown LIKE '- [ ] %' OR markdown LIKE '* [ ] %')`;
   const completedClause = `(markdown LIKE '- [x] %' OR markdown LIKE '* [x] %' OR markdown LIKE '- [X] %' OR markdown LIKE '* [X] %')`;
+  const archivedCompletedClause = `ial NOT LIKE '%custom-dida-sync-state="completed-synced"%'`;
 
   return `
     SELECT id, markdown, box, hpath
@@ -68,7 +69,7 @@ export function buildTodoBlockSql(range: SyncRange, limit: number, offset = 0): 
       AND subtype = 't'
       AND (
         ${incompleteClause}
-        OR (${completedClause} AND ial LIKE '%custom-dida-task-id%')
+        OR (${completedClause} AND ial LIKE '%custom-dida-task-id%' AND ${archivedCompletedClause})
       )
     ORDER BY
       CASE WHEN markdown LIKE '- [ ] %' OR markdown LIKE '* [ ] %' THEN 0 ELSE 1 END,

@@ -23,6 +23,7 @@ describe("buildTodoBlockSql", () => {
 
     expect(sql).toContain("subtype = 't'");
     expect(sql).toContain("ial LIKE '%custom-dida-task-id%'");
+    expect(sql).toContain("ial NOT LIKE '%custom-dida-sync-state=\"completed-synced\"%'");
     expect(sql).toContain("ORDER BY");
     expect(sql).toContain("CASE WHEN markdown LIKE '- [ ] %'");
     expect(sql).toContain("LIMIT 200 OFFSET 400");
