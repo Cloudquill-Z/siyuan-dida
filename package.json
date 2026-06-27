@@ -1,6 +1,6 @@
 {
   "name": "siyuan-dida",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Sync SiYuan Markdown todos with Dida through the local dida CLI.",
   "type": "module",
   "main": "index.js",

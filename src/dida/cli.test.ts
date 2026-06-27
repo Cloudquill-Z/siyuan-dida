@@ -49,6 +49,16 @@ describe("buildDesktopPath", () => {
     expect(path.split(":")).toContain("/opt/homebrew/bin");
     expect(path.split(":")).toContain("/usr/bin");
   });
+
+  test("uses Windows path delimiter and common Windows locations", () => {
+    const path = buildDesktopPath("C:\\Windows\\System32;C:\\Tools", "C:\\Users\\lance", "win32");
+    const parts = path.split(";");
+
+    expect(parts).toContain("C:\\Users\\lance\\.hermes\\node\\bin");
+    expect(parts).toContain("C:\\Users\\lance\\AppData\\Roaming\\npm");
+    expect(parts).toContain("C:\\Windows\\System32");
+    expect(parts).not.toContain("C:\\Windows\\System32:C:\\Tools");
+  });
 });
 
 describe("DidaCliClient", () => {

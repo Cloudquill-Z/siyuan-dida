@@ -26,6 +26,10 @@ export const defaultCurlRunner: CurlRunner = (command, args) =>
     });
   });
 
+export function getCurlCommand(platform = process.platform): string {
+  return platform === "win32" ? "curl.exe" : "curl";
+}
+
 export async function readDidaCliToken(): Promise<string> {
   const configPath = join(homedir(), ".config", "dida-cli", "config.json");
   const content = await readFile(configPath, "utf-8");
@@ -93,7 +97,7 @@ export class DidaCurlClient {
     }
 
     args.push(`${BASE_URL}${path}`);
-    const result = await this.runner("curl", args);
+    const result = await this.runner(getCurlCommand(), args);
     if (!result.stdout.trim()) {
       return undefined as T;
     }

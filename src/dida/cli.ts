@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { homedir } from "node:os";
+import { delimiter } from "node:path";
 
 export interface CommandResult {
   stdout: string;
@@ -37,23 +38,35 @@ export const defaultRunner: CommandRunner = (command, args) =>
     });
   });
 
-export function buildDesktopPath(currentPath = "", home = homedir()): string {
-  const paths = [
-    `${home}/.hermes/node/bin`,
-    `${home}/.opencode/bin`,
-    `${home}/.local/bin`,
-    `${home}/bin`,
-    `${home}/.local/share/pnpm`,
-    "/opt/homebrew/bin",
-    "/opt/homebrew/sbin",
-    "/usr/local/bin",
-    "/usr/bin",
-    "/bin",
-    "/usr/sbin",
-    "/sbin",
-    ...currentPath.split(":")
-  ];
-  return [...new Set(paths.filter(Boolean))].join(":");
+export function buildDesktopPath(currentPath = "", home = homedir(), platform = process.platform): string {
+  const separator = platform === "win32" ? ";" : delimiter;
+  const paths =
+    platform === "win32"
+      ? [
+          `${home}\\.hermes\\node\\bin`,
+          `${home}\\AppData\\Roaming\\npm`,
+          `${home}\\scoop\\shims`,
+          `${home}\\AppData\\Local\\Microsoft\\WindowsApps`,
+          "C:\\Program Files\\nodejs",
+          "C:\\Windows\\System32",
+          ...currentPath.split(separator)
+        ]
+      : [
+          `${home}/.hermes/node/bin`,
+          `${home}/.opencode/bin`,
+          `${home}/.local/bin`,
+          `${home}/bin`,
+          `${home}/.local/share/pnpm`,
+          "/opt/homebrew/bin",
+          "/opt/homebrew/sbin",
+          "/usr/local/bin",
+          "/usr/bin",
+          "/bin",
+          "/usr/sbin",
+          "/sbin",
+          ...currentPath.split(separator)
+        ];
+  return [...new Set(paths.filter(Boolean))].join(separator);
 }
 
 function isBareCommand(command: string): boolean {
@@ -78,6 +91,10 @@ export async function resolveDidaCommand(
     if (!isBareCommand(configuredCommand)) {
       throw new Error(`Unable to run dida CLI: ${(error as Error).message}`);
     }
+  }
+
+  if (process.platform === "win32") {
+    throw new Error(`Unable to run dida CLI. Tried ${configuredCommand}. 请确认 dida 已安装并在 PATH 中，或在设置里填写 dida.cmd 的绝对路径。`);
   }
 
   const errors: string[] = [];
