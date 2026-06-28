@@ -29,11 +29,25 @@ describe("parseTodoMarkdown", () => {
       title: "每日消保工单处理"
     });
   });
+
+  test("parses SiYuan kramdown todos with inline attrs before checkbox", () => {
+    expect(parseTodoMarkdown('- {: custom-status="todo" id="20260623224013-tx3inum"}[ ] 思源笔记插件')).toEqual({
+      marker: "-",
+      checked: false,
+      title: "思源笔记插件"
+    });
+  });
 });
 
 describe("markTodoCompleted", () => {
   test("rewrites an unchecked todo as completed", () => {
     expect(markTodoCompleted("- [ ] 整理会议纪要")).toBe("- [x] 整理会议纪要");
+  });
+
+  test("rewrites SiYuan kramdown todos with inline attrs before checkbox", () => {
+    expect(markTodoCompleted('- {: custom-status="todo" id="20260623224013-tx3inum"}[ ] 思源笔记插件')).toBe(
+      '- {: custom-status="todo" id="20260623224013-tx3inum"}[x] 思源笔记插件'
+    );
   });
 
   test("keeps non todo markdown unchanged", () => {

@@ -2,7 +2,7 @@
   "name": "siyuan-dida",
   "author": "lance",
   "url": "https://github.com/Cloudquill-Z/siyuan-dida",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "minAppVersion": "3.1.0",
   "backends": ["darwin", "windows", "linux"],
   "frontends": ["desktop", "desktop-window"],

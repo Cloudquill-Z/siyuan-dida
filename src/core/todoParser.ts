@@ -4,7 +4,7 @@ export interface ParsedTodo {
   title: string;
 }
 
-const TODO_PATTERN = /^(\s*)([-*])\s+\[([ xX])\]\s+(.*)$/;
+const TODO_PATTERN = /^(\s*[-*](?:\s+\{:[^}]*\})?\s*)\[([ xX])\]\s+([^\r\n]*)/;
 
 export function parseTodoMarkdown(markdown: string): ParsedTodo | null {
   const firstLine = markdown.split(/\r?\n/, 1)[0] ?? "";
@@ -14,12 +14,12 @@ export function parseTodoMarkdown(markdown: string): ParsedTodo | null {
   }
 
   return {
-    marker: match[2] as "-" | "*",
-    checked: match[3].toLowerCase() === "x",
-    title: match[4].trim()
+    marker: match[1].trim().startsWith("*") ? "*" : "-",
+    checked: match[2].toLowerCase() === "x",
+    title: match[3].trim()
   };
 }
 
 export function markTodoCompleted(markdown: string): string {
-  return markdown.replace(TODO_PATTERN, "$1$2 [x] $4");
+  return markdown.replace(TODO_PATTERN, "$1[x] $3");
 }

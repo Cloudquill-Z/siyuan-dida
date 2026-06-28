@@ -59,4 +59,38 @@ describe("SiYuanRepository", () => {
       }
     ]);
   });
+
+  test("marks SiYuan kramdown list tasks with inline attrs completed", async () => {
+    const calls: Array<{ path: string; body: unknown }> = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (path, init) => {
+      calls.push({
+        path: String(path),
+        body: JSON.parse(String(init?.body))
+      });
+      const data =
+        calls.length === 1
+          ? { kramdown: '- {: custom-status="todo" id="20260623224013-tx3inum"}[ ] 思源笔记插件\n  {: id="child"}' }
+          : null;
+      return new Response(JSON.stringify({ code: 0, data }), { status: 200 });
+    });
+
+    await new SiYuanRepository().markBlockCompleted("20260623224013-tx3inum");
+
+    expect(calls[1]).toEqual({
+      path: "/api/block/updateBlock",
+      body: {
+        id: "20260623224013-tx3inum",
+        dataType: "markdown",
+        data: '- {: custom-status="todo" id="20260623224013-tx3inum"}[x] 思源笔记插件\n  {: id="child"}'
+      }
+    });
+  });
+
+  test("fails completion when kramdown cannot be rewritten", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      return new Response(JSON.stringify({ code: 0, data: { kramdown: "普通段落" } }), { status: 200 });
+    });
+
+    await expect(new SiYuanRepository().markBlockCompleted("20260623224013-tx3inum")).rejects.toThrow("Unable to mark SiYuan todo completed");
+  });
 });

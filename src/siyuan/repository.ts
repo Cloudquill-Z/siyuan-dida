@@ -40,10 +40,14 @@ export class SiYuanRepository implements SiYuanGateway {
     if (!markdown) {
       throw new Error("SiYuan getBlockKramdown returned no kramdown content");
     }
+    const completedMarkdown = markTodoCompleted(markdown);
+    if (completedMarkdown === markdown) {
+      throw new Error("Unable to mark SiYuan todo completed: unsupported task markdown");
+    }
     await kernelApi<unknown>("/api/block/updateBlock", {
       id: blockId,
       dataType: "markdown",
-      data: markTodoCompleted(markdown)
+      data: completedMarkdown
     });
   }
 
