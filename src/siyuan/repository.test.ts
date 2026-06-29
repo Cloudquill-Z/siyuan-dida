@@ -21,15 +21,18 @@ describe("buildTodoBlockSql", () => {
       400
     );
 
-    expect(sql).toContain("subtype = 't'");
-    expect(sql).toContain("ial LIKE '%custom-dida-task-id%'");
-    expect(sql).toContain("ial NOT LIKE '%custom-dida-sync-state=\"completed-synced\"%'");
+    expect(sql).toContain("b.subtype = 't'");
+    expect(sql).toContain("b.ial LIKE '%custom-dida-task-id%'");
+    expect(sql).toContain("b.ial NOT LIKE '%custom-dida-sync-state=\"completed-synced\"%'");
+    expect(sql).toContain("LEFT JOIN blocks parent ON parent.id = b.parent_id");
+    expect(sql).toContain("LEFT JOIN blocks grandparent ON grandparent.id = parent.parent_id");
+    expect(sql).toContain("WHEN parent.type = 'l' AND grandparent.type = 'i'");
     expect(sql).toContain("ORDER BY");
     expect(sql).toContain("CASE");
-    expect(sql).toContain("WHEN markdown LIKE '- [ ] %'");
-    expect(sql).toContain("markdown LIKE '- {: %}[ ] %'");
-    expect(sql).toContain("markdown LIKE '- {: %}[x] %'");
-    expect(sql).toContain("markdown LIKE '- {: %}[X] %'");
+    expect(sql).toContain("WHEN b.markdown LIKE '- [ ] %'");
+    expect(sql).toContain("b.markdown LIKE '- {: %}[ ] %'");
+    expect(sql).toContain("b.markdown LIKE '- {: %}[x] %'");
+    expect(sql).toContain("b.markdown LIKE '- {: %}[X] %'");
     expect(sql).toContain("LIMIT 200 OFFSET 400");
   });
 });

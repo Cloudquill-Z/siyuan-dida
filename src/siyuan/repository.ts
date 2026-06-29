@@ -63,47 +63,58 @@ export class SiYuanRepository implements SiYuanGateway {
 
 export function buildTodoBlockSql(range: SyncRange, limit: number, offset = 0): string {
   const hpathClause = range.includeChildren
-    ? `hpath LIKE '${escapeSqlLike(range.hpathPrefix)}%'`
-    : `hpath = '${escapeSql(range.hpathPrefix)}'`;
+    ? `b.hpath LIKE '${escapeSqlLike(range.hpathPrefix)}%'`
+    : `b.hpath = '${escapeSql(range.hpathPrefix)}'`;
   const incompleteClause = `(
-        markdown LIKE '- [ ] %'
-        OR markdown LIKE '* [ ] %'
-        OR markdown LIKE '- {: %}[ ] %'
-        OR markdown LIKE '* {: %}[ ] %'
+        b.markdown LIKE '- [ ] %'
+        OR b.markdown LIKE '* [ ] %'
+        OR b.markdown LIKE '- {: %}[ ] %'
+        OR b.markdown LIKE '* {: %}[ ] %'
       )`;
   const completedClause = `(
-        markdown LIKE '- [x] %'
-        OR markdown LIKE '* [x] %'
-        OR markdown LIKE '- [X] %'
-        OR markdown LIKE '* [X] %'
-        OR markdown LIKE '- {: %}[x] %'
-        OR markdown LIKE '* {: %}[x] %'
-        OR markdown LIKE '- {: %}[X] %'
-        OR markdown LIKE '* {: %}[X] %'
+        b.markdown LIKE '- [x] %'
+        OR b.markdown LIKE '* [x] %'
+        OR b.markdown LIKE '- [X] %'
+        OR b.markdown LIKE '* [X] %'
+        OR b.markdown LIKE '- {: %}[x] %'
+        OR b.markdown LIKE '* {: %}[x] %'
+        OR b.markdown LIKE '- {: %}[X] %'
+        OR b.markdown LIKE '* {: %}[X] %'
       )`;
-  const archivedCompletedClause = `ial NOT LIKE '%custom-dida-sync-state="completed-synced"%'`;
+  const archivedCompletedClause = `b.ial NOT LIKE '%custom-dida-sync-state="completed-synced"%'`;
 
   return `
-    SELECT id, parent_id, markdown, box, hpath
-    FROM blocks
-    WHERE box = '${escapeSql(range.notebookId)}'
+    SELECT
+      b.id,
+      CASE
+        WHEN parent.type = 'i' AND parent.subtype = 't' THEN parent.id
+        WHEN parent.type = 'l' AND grandparent.type = 'i' AND grandparent.subtype = 't' THEN grandparent.id
+        ELSE NULL
+      END AS parent_id,
+      b.markdown,
+      b.box,
+      b.hpath
+    FROM blocks b
+    LEFT JOIN blocks parent ON parent.id = b.parent_id
+    LEFT JOIN blocks grandparent ON grandparent.id = parent.parent_id
+    WHERE b.box = '${escapeSql(range.notebookId)}'
       AND ${hpathClause}
-      AND type = 'i'
-      AND subtype = 't'
+      AND b.type = 'i'
+      AND b.subtype = 't'
       AND (
         ${incompleteClause}
-        OR (${completedClause} AND ial LIKE '%custom-dida-task-id%' AND ${archivedCompletedClause})
+        OR (${completedClause} AND b.ial LIKE '%custom-dida-task-id%' AND ${archivedCompletedClause})
       )
     ORDER BY
       CASE
-        WHEN markdown LIKE '- [ ] %'
-          OR markdown LIKE '* [ ] %'
-          OR markdown LIKE '- {: %}[ ] %'
-          OR markdown LIKE '* {: %}[ ] %'
+        WHEN b.markdown LIKE '- [ ] %'
+          OR b.markdown LIKE '* [ ] %'
+          OR b.markdown LIKE '- {: %}[ ] %'
+          OR b.markdown LIKE '* {: %}[ ] %'
         THEN 0
         ELSE 1
       END,
-      updated DESC
+      b.updated DESC
     LIMIT ${Math.max(1, limit)} OFFSET ${Math.max(0, offset)}
   `;
 }
