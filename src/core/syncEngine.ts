@@ -10,6 +10,16 @@ const SYNC_STATE_ATTR = "custom-dida-sync-state";
 const SYNC_STATE_SYNCED = "synced";
 const SYNC_STATE_COMPLETED_SYNCED = "completed-synced";
 
+interface TaskBinding {
+  taskId: string;
+  projectId: string;
+}
+
+interface RangeSyncContext {
+  blocksById: Map<string, SiYuanTodoBlock>;
+  knownBindings: Map<string, TaskBinding>;
+}
+
 function emptyResult(): SyncResult {
   const now = new Date().toISOString();
   return {
@@ -43,13 +53,17 @@ function addEvent(
   });
 }
 
-function binding(block: SiYuanTodoBlock) {
-  const taskId = block.attrs[TASK_ID_ATTR];
-  const projectId = block.attrs[PROJECT_ID_ATTR];
+function bindingFromAttrs(attrs: Record<string, string>): TaskBinding | null {
+  const taskId = attrs[TASK_ID_ATTR];
+  const projectId = attrs[PROJECT_ID_ATTR];
   if (!taskId || !projectId) {
     return null;
   }
   return { taskId, projectId };
+}
+
+function binding(block: SiYuanTodoBlock): TaskBinding | null {
+  return bindingFromAttrs(block.attrs);
 }
 
 function attrsFor(taskId: string, projectId: string, hash: string, syncState = SYNC_STATE_SYNCED): Record<string, string> {
@@ -119,8 +133,17 @@ export class SyncEngine {
       result.scanned += blocks.length;
       result.rangeResults.push(rangeResult);
       addEvent(result, "info", `范围「${range.name}」扫描到 ${blocks.length} 个候选任务`, { rangeId: range.id });
-      for (const block of blocks) {
-        await this.syncBlock(block, range.targetProjectId, completedTaskIds, result, rangeResult);
+      const orderedBlocks = orderBlocksForParentSync(blocks);
+      const context: RangeSyncContext = {
+        blocksById: new Map(blocks.map((block) => [block.id, block])),
+        knownBindings: new Map(
+          blocks
+            .map((block) => [block.id, binding(block)] as const)
+            .filter((item): item is readonly [string, TaskBinding] => item[1] !== null)
+        )
+      };
+      for (const block of orderedBlocks) {
+        await this.syncBlock(block, range.targetProjectId, completedTaskIds, result, rangeResult, context);
       }
       addEvent(
         result,
@@ -144,7 +167,8 @@ export class SyncEngine {
     targetProjectId: string,
     completedTaskIds: Set<string>,
     result: SyncResult,
-    rangeResult: SyncRangeResult
+    rangeResult: SyncRangeResult,
+    context: RangeSyncContext
   ) {
     try {
       const parsed = parseTodoMarkdown(block.markdown);
@@ -168,8 +192,22 @@ export class SyncEngine {
           });
           return;
         }
+        const parent = await this.resolveParentBinding(block, context);
+        if (parent.hasParent && !parent.binding) {
+          result.skipped += 1;
+          rangeResult.skipped += 1;
+          addEvent(result, "debug", `跳过未绑定父任务下的新子任务：${parsed.title}`, {
+            blockId: block.id,
+            rangeId: rangeResult.rangeId
+          });
+          return;
+        }
         const created = await this.dida.createTask(targetProjectId, parsed.title);
+        if (parent.binding) {
+          await this.dida.setTaskParent(created.projectId, created.id, parent.binding.taskId);
+        }
         await this.siyuan.setBlockAttrs(block.id, attrsFor(created.id, created.projectId, currentHash));
+        context.knownBindings.set(block.id, { taskId: created.id, projectId: created.projectId });
         result.created += 1;
         rangeResult.created += 1;
         addEvent(result, "info", `创建滴答任务：${parsed.title}`, { blockId: block.id, rangeId: rangeResult.rangeId });
@@ -242,6 +280,40 @@ export class SyncEngine {
       rotatingLimit
     };
   }
+
+  private async resolveParentBinding(block: SiYuanTodoBlock, context: RangeSyncContext): Promise<{ hasParent: boolean; binding?: TaskBinding }> {
+    if (!block.parentId) {
+      return { hasParent: false };
+    }
+
+    const known = context.knownBindings.get(block.parentId);
+    if (known) {
+      return { hasParent: true, binding: known };
+    }
+
+    const parentBlock = context.blocksById.get(block.parentId);
+    if (parentBlock) {
+      const parentBinding = binding(parentBlock);
+      if (parentBinding) {
+        context.knownBindings.set(block.parentId, parentBinding);
+        return { hasParent: true, binding: parentBinding };
+      }
+      return { hasParent: true };
+    }
+
+    try {
+      const parentAttrs = await this.siyuan.getBlockAttrs(block.parentId);
+      const parentBinding = bindingFromAttrs(parentAttrs);
+      if (parentBinding) {
+        context.knownBindings.set(block.parentId, parentBinding);
+        return { hasParent: true, binding: parentBinding };
+      }
+    } catch {
+      // Keep the child unsynced rather than creating it as a top-level task.
+    }
+
+    return { hasParent: true };
+  }
 }
 
 function normalizeOffset(value: number | undefined): number {
@@ -260,4 +332,30 @@ function uniqueBlocks(blocks: SiYuanTodoBlock[]): SiYuanTodoBlock[] {
     seen.add(block.id);
     return true;
   });
+}
+
+function orderBlocksForParentSync(blocks: SiYuanTodoBlock[]): SiYuanTodoBlock[] {
+  const byId = new Map(blocks.map((block) => [block.id, block]));
+  const emitted = new Set<string>();
+  const ordered: SiYuanTodoBlock[] = [];
+
+  const emit = (block: SiYuanTodoBlock) => {
+    if (emitted.has(block.id)) {
+      return;
+    }
+    if (block.parentId) {
+      const parent = byId.get(block.parentId);
+      if (parent) {
+        emit(parent);
+      }
+    }
+    emitted.add(block.id);
+    ordered.push(block);
+  };
+
+  for (const block of blocks) {
+    emit(block);
+  }
+
+  return ordered;
 }

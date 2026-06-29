@@ -12,6 +12,10 @@ export class DidaCliGateway implements DidaGateway {
     await this.client.updateTaskTitle(projectId, taskId, title);
   }
 
+  async setTaskParent(projectId: string, taskId: string, parentTaskId: string): Promise<void> {
+    await this.client.setTaskParent(projectId, taskId, parentTaskId);
+  }
+
   completeTask(projectId: string, taskId: string) {
     return this.client.completeTask(projectId, taskId);
   }

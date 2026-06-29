@@ -7,8 +7,6 @@ export interface PluginSettings {
   syncIntervalSeconds: number;
   syncOnStartup: boolean;
   maxTasksPerRun: number;
-  useProxy: boolean;
-  proxyUrl: string;
   ranges: SyncRange[];
   logs: SyncResult[];
 }
@@ -20,8 +18,6 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   syncIntervalSeconds: 15,
   syncOnStartup: false,
   maxTasksPerRun: 200,
-  useProxy: true,
-  proxyUrl: "http://127.0.0.1:7890",
   ranges: [],
   logs: []
 };

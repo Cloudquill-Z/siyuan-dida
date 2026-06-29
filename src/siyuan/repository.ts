@@ -4,6 +4,7 @@ import { kernelApi } from "./api";
 
 interface SqlBlockRow {
   id: string;
+  parent_id?: string;
   markdown: string;
   box: string;
   hpath: string;
@@ -20,7 +21,11 @@ export class SiYuanRepository implements SiYuanGateway {
     const rows = await kernelApi<SqlBlockRow[]>("/api/query/sql", { stmt: sql });
     const blocks = await Promise.all(
       rows.map(async (row) => ({
-        ...row,
+        id: row.id,
+        parentId: row.parent_id,
+        markdown: row.markdown,
+        box: row.box,
+        hpath: row.hpath,
         attrs: await this.getBlockAttrs(row.id)
       }))
     );
@@ -51,7 +56,7 @@ export class SiYuanRepository implements SiYuanGateway {
     });
   }
 
-  private async getBlockAttrs(blockId: string): Promise<Record<string, string>> {
+  async getBlockAttrs(blockId: string): Promise<Record<string, string>> {
     return kernelApi<Record<string, string>>("/api/attr/getBlockAttrs", { id: blockId });
   }
 }
@@ -60,12 +65,26 @@ export function buildTodoBlockSql(range: SyncRange, limit: number, offset = 0): 
   const hpathClause = range.includeChildren
     ? `hpath LIKE '${escapeSqlLike(range.hpathPrefix)}%'`
     : `hpath = '${escapeSql(range.hpathPrefix)}'`;
-  const incompleteClause = `(markdown LIKE '- [ ] %' OR markdown LIKE '* [ ] %')`;
-  const completedClause = `(markdown LIKE '- [x] %' OR markdown LIKE '* [x] %' OR markdown LIKE '- [X] %' OR markdown LIKE '* [X] %')`;
+  const incompleteClause = `(
+        markdown LIKE '- [ ] %'
+        OR markdown LIKE '* [ ] %'
+        OR markdown LIKE '- {: %}[ ] %'
+        OR markdown LIKE '* {: %}[ ] %'
+      )`;
+  const completedClause = `(
+        markdown LIKE '- [x] %'
+        OR markdown LIKE '* [x] %'
+        OR markdown LIKE '- [X] %'
+        OR markdown LIKE '* [X] %'
+        OR markdown LIKE '- {: %}[x] %'
+        OR markdown LIKE '* {: %}[x] %'
+        OR markdown LIKE '- {: %}[X] %'
+        OR markdown LIKE '* {: %}[X] %'
+      )`;
   const archivedCompletedClause = `ial NOT LIKE '%custom-dida-sync-state="completed-synced"%'`;
 
   return `
-    SELECT id, markdown, box, hpath
+    SELECT id, parent_id, markdown, box, hpath
     FROM blocks
     WHERE box = '${escapeSql(range.notebookId)}'
       AND ${hpathClause}
@@ -76,7 +95,14 @@ export function buildTodoBlockSql(range: SyncRange, limit: number, offset = 0): 
         OR (${completedClause} AND ial LIKE '%custom-dida-task-id%' AND ${archivedCompletedClause})
       )
     ORDER BY
-      CASE WHEN markdown LIKE '- [ ] %' OR markdown LIKE '* [ ] %' THEN 0 ELSE 1 END,
+      CASE
+        WHEN markdown LIKE '- [ ] %'
+          OR markdown LIKE '* [ ] %'
+          OR markdown LIKE '- {: %}[ ] %'
+          OR markdown LIKE '* {: %}[ ] %'
+        THEN 0
+        ELSE 1
+      END,
       updated DESC
     LIMIT ${Math.max(1, limit)} OFFSET ${Math.max(0, offset)}
   `;

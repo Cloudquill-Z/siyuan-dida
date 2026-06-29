@@ -29,7 +29,7 @@ export default defineConfig({
       fileName: () => "index.js"
     },
     rollupOptions: {
-      external: ["siyuan", "node:child_process", "node:fs/promises", "node:os", "node:path"],
+      external: ["siyuan", "node:child_process", "node:fs", "node:fs/promises", "node:os", "node:path"],
       output: {
         assetFileNames: "index.css"
       }

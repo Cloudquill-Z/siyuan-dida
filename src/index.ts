@@ -2,8 +2,6 @@ import "./index.scss";
 import { Dialog, Plugin, showMessage } from "siyuan";
 import { SyncEngine } from "./core/syncEngine";
 import { resolveDidaCommand, DidaCliClient } from "./dida/cli";
-import { DidaCurlClient } from "./dida/curl";
-import { DidaCurlGateway } from "./dida/curlGateway";
 import { DidaCliGateway } from "./dida/gateway";
 import { DEFAULT_SETTINGS, normalizeSettings, type PluginSettings } from "./settings/defaults";
 import { summarizeSyncLog } from "./settings/logFormat";
@@ -115,9 +113,7 @@ export default class SiyuanDidaPlugin extends Plugin {
     try {
       const resolved = await resolveDidaCommand(this.settings.resolvedCliPath || this.settings.cliCommand || "dida");
       this.settings.resolvedCliPath = resolved.command;
-      const didaGateway = this.settings.useProxy
-        ? new DidaCurlGateway(new DidaCurlClient({ proxyUrl: this.settings.proxyUrl }))
-        : new DidaCliGateway(new DidaCliClient(resolved.command));
+      const didaGateway = new DidaCliGateway(new DidaCliClient(resolved.command));
       const engine = new SyncEngine(new SiYuanRepository(), didaGateway);
       const result = await engine.sync({
         maxTasksPerRun: this.settings.maxTasksPerRun || DEFAULT_SETTINGS.maxTasksPerRun,
@@ -151,6 +147,7 @@ export default class SiyuanDidaPlugin extends Plugin {
       this.statusElement.textContent = text;
     }
   }
+
 }
 
 function createErrorSyncResult(message: string): SyncResult {

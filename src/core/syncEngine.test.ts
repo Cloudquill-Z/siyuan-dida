@@ -35,6 +35,7 @@ class FakeSiYuan implements SiYuanGateway {
   public attrs: Array<{ blockId: string; attrs: Record<string, string> }> = [];
   public completed: string[] = [];
   public listCalls: Array<{ range: SyncRange; limit: number; offset: number }> = [];
+  public existingAttrs = new Map<string, Record<string, string>>();
 
   constructor(public blocks: SiYuanTodoBlock[]) {}
 
@@ -45,6 +46,11 @@ class FakeSiYuan implements SiYuanGateway {
 
   async setBlockAttrs(blockId: string, attrs: Record<string, string>) {
     this.attrs.push({ blockId, attrs });
+    this.existingAttrs.set(blockId, attrs);
+  }
+
+  async getBlockAttrs(blockId: string) {
+    return this.existingAttrs.get(blockId) ?? {};
   }
 
   async markBlockCompleted(blockId: string) {
@@ -56,6 +62,7 @@ class FakeDida implements DidaGateway {
   public created: Array<{ projectId: string; title: string }> = [];
   public completed: Array<{ projectId: string; taskId: string }> = [];
   public updated: Array<{ projectId: string; taskId: string; title: string }> = [];
+  public parents: Array<{ projectId: string; taskId: string; parentTaskId: string }> = [];
   public completedTasks = new Set<string>();
   public completedTaskError: Error | null = null;
 
@@ -66,6 +73,10 @@ class FakeDida implements DidaGateway {
 
   async updateTaskTitle(projectId: string, taskId: string, title: string) {
     this.updated.push({ projectId, taskId, title });
+  }
+
+  async setTaskParent(projectId: string, taskId: string, parentTaskId: string) {
+    this.parents.push({ projectId, taskId, parentTaskId });
   }
 
   async completeTask(projectId: string, taskId: string) {
@@ -95,6 +106,50 @@ describe("SyncEngine", () => {
     expect(siyuan.attrs[0].attrs["custom-dida-task-id"]).toBe("task-1");
   });
 
+  test("creates new child todos under their newly created Dida parent task", async () => {
+    const siyuan = new FakeSiYuan([
+      block({ id: "child-block", parentId: "parent-block", markdown: "- [ ] 子任务" }),
+      block({ id: "parent-block", markdown: "- [ ] 父任务" })
+    ]);
+    const dida = new FakeDida();
+
+    const result = await new SyncEngine(siyuan, dida).sync(settings());
+
+    expect(result.created).toBe(2);
+    expect(dida.created).toEqual([
+      { projectId: "project-1", title: "父任务" },
+      { projectId: "project-1", title: "子任务" }
+    ]);
+    expect(dida.parents).toEqual([{ projectId: "project-1", taskId: "task-2", parentTaskId: "task-1" }]);
+    expect(siyuan.attrs.map((item) => item.blockId)).toEqual(["parent-block", "child-block"]);
+  });
+
+  test("creates a new child todo under an already bound parent block", async () => {
+    const siyuan = new FakeSiYuan([block({ id: "child-block", parentId: "parent-block", markdown: "- [ ] 子任务" })]);
+    siyuan.existingAttrs.set("parent-block", {
+      "custom-dida-task-id": "parent-task",
+      "custom-dida-project-id": "project-1"
+    });
+    const dida = new FakeDida();
+
+    const result = await new SyncEngine(siyuan, dida).sync(settings());
+
+    expect(result.created).toBe(1);
+    expect(dida.created).toEqual([{ projectId: "project-1", title: "子任务" }]);
+    expect(dida.parents).toEqual([{ projectId: "project-1", taskId: "task-1", parentTaskId: "parent-task" }]);
+  });
+
+  test("skips a new child todo until its parent has a Dida binding", async () => {
+    const siyuan = new FakeSiYuan([block({ id: "child-block", parentId: "parent-block", markdown: "- [ ] 子任务" })]);
+    const dida = new FakeDida();
+
+    const result = await new SyncEngine(siyuan, dida).sync(settings());
+
+    expect(result.created).toBe(0);
+    expect(result.skipped).toBe(1);
+    expect(dida.created).toEqual([]);
+  });
+
   test("ignores unsynced completed historical todos", async () => {
     const siyuan = new FakeSiYuan([block({ markdown: "- [x] 历史任务" })]);
     const dida = new FakeDida();
@@ -113,6 +168,26 @@ describe("SyncEngine", () => {
           "custom-dida-task-id": "task-1",
           "custom-dida-project-id": "project-1",
           "custom-dida-last-hash": "old"
+        }
+      })
+    ]);
+    const dida = new FakeDida();
+
+    const result = await new SyncEngine(siyuan, dida).sync(settings());
+
+    expect(result.completed).toBe(1);
+    expect(dida.completed).toEqual([{ projectId: "project-1", taskId: "task-1" }]);
+    expect(siyuan.attrs[0].attrs["custom-dida-sync-state"]).toBe("completed-synced");
+  });
+
+  test("completes Dida task for SiYuan checked kramdown todo with inline attrs", async () => {
+    const siyuan = new FakeSiYuan([
+      block({
+        markdown: '- {: id="block-1"}[x] 整理会议纪要',
+        attrs: {
+          "custom-dida-task-id": "task-1",
+          "custom-dida-project-id": "project-1",
+          "custom-dida-last-hash": taskHash("整理会议纪要", false)
         }
       })
     ]);

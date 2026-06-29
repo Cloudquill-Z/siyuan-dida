@@ -1,7 +1,6 @@
 import { showMessage } from "siyuan";
 import type { SyncRange } from "../core/types";
 import { DidaCliClient, type DidaProject, resolveDidaCommand } from "../dida/cli";
-import { DidaCurlClient } from "../dida/curl";
 import { listNotebooks, type SiYuanNotebook } from "../siyuan/api";
 import type { PluginSettings } from "./defaults";
 import { formatSyncLogs } from "./logFormat";
@@ -36,14 +35,6 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
         <label class="dida-sync-field">
           <span>命令或路径</span>
           <input class="b3-text-field" data-field="cliCommand" placeholder="dida" />
-        </label>
-        <label class="dida-sync-toggle">
-          <input type="checkbox" data-field="useProxy" />
-          <span>通过代理访问滴答 API</span>
-        </label>
-        <label class="dida-sync-field">
-          <span>代理地址</span>
-          <input class="b3-text-field" data-field="proxyUrl" placeholder="http://127.0.0.1:7890" />
         </label>
         <div class="dida-sync-actions">
           <button class="b3-button" data-action="test">测试连接</button>
@@ -94,16 +85,12 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
   `;
 
   const cliCommand = root.querySelector<HTMLInputElement>('[data-field="cliCommand"]')!;
-  const useProxy = root.querySelector<HTMLInputElement>('[data-field="useProxy"]')!;
-  const proxyUrl = root.querySelector<HTMLInputElement>('[data-field="proxyUrl"]')!;
   const autoSync = root.querySelector<HTMLInputElement>('[data-field="autoSync"]')!;
   const syncIntervalSeconds = root.querySelector<HTMLInputElement>('[data-field="syncIntervalSeconds"]')!;
   const rangesEl = root.querySelector<HTMLElement>('[data-field="ranges"]')!;
   const logs = root.querySelector<HTMLElement>('[data-field="logs"]')!;
 
   cliCommand.value = options.settings.cliCommand;
-  useProxy.checked = options.settings.useProxy;
-  proxyUrl.value = options.settings.proxyUrl;
   autoSync.checked = options.settings.autoSync;
   syncIntervalSeconds.value = String(options.settings.syncIntervalSeconds);
   logs.textContent = formatSyncLogs(options.settings.logs.slice(0, 10));
@@ -116,9 +103,7 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
     try {
       const resolved = await resolveDidaCommand(cliCommand.value || "dida");
       showMessage(`Dida CLI 可用：${resolved.command} (${resolved.version})`);
-      state.projects = useProxy.checked
-        ? await new DidaCurlClient({ proxyUrl: proxyUrl.value }).listProjects()
-        : await new DidaCliClient(resolved.command).listProjects();
+      state.projects = await new DidaCliClient(resolved.command).listProjects();
       renderRanges();
     } catch (error) {
       showMessage(`Dida CLI 不可用：${(error as Error).message}`, 5000, "error");
@@ -128,9 +113,7 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
   root.querySelector('[data-action="loadProjects"]')?.addEventListener("click", async () => {
     try {
       const resolved = await resolveDidaCommand(cliCommand.value || "dida");
-      state.projects = useProxy.checked
-        ? await new DidaCurlClient({ proxyUrl: proxyUrl.value }).listProjects()
-        : await new DidaCliClient(resolved.command).listProjects();
+      state.projects = await new DidaCliClient(resolved.command).listProjects();
       renderRanges();
       showMessage("滴答清单已刷新");
     } catch (error) {
@@ -159,8 +142,6 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
       await options.onSave({
         ...options.settings,
         cliCommand: cliCommand.value || "dida",
-        useProxy: useProxy.checked,
-        proxyUrl: proxyUrl.value.trim(),
         autoSync: autoSync.checked,
         syncIntervalSeconds: Number(syncIntervalSeconds.value || 15),
         ranges
@@ -200,11 +181,7 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
     .catch(() => undefined);
 
   void resolveDidaCommand(options.settings.resolvedCliPath || options.settings.cliCommand || "dida")
-    .then((resolved) =>
-      options.settings.useProxy
-        ? new DidaCurlClient({ proxyUrl: options.settings.proxyUrl }).listProjects()
-        : new DidaCliClient(resolved.command).listProjects()
-    )
+    .then((resolved) => new DidaCliClient(resolved.command).listProjects())
     .then((projects) => {
       state.projects = projects;
       renderRanges();

@@ -1,6 +1,6 @@
 {
   "name": "siyuan-dida",
-  "version": "1.0.4",
+  "version": "1.0.10",
   "description": "Sync SiYuan Markdown todos with Dida through the local dida CLI.",
   "type": "module",
   "main": "index.js",
@@ -20,6 +20,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "sass-embedded": "^1.100.0",
     "typescript": "^5.7.2",
     "vite": "^5.0.0",
     "vitest": "^2.1.8"

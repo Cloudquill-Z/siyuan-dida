@@ -25,7 +25,11 @@ describe("buildTodoBlockSql", () => {
     expect(sql).toContain("ial LIKE '%custom-dida-task-id%'");
     expect(sql).toContain("ial NOT LIKE '%custom-dida-sync-state=\"completed-synced\"%'");
     expect(sql).toContain("ORDER BY");
-    expect(sql).toContain("CASE WHEN markdown LIKE '- [ ] %'");
+    expect(sql).toContain("CASE");
+    expect(sql).toContain("WHEN markdown LIKE '- [ ] %'");
+    expect(sql).toContain("markdown LIKE '- {: %}[ ] %'");
+    expect(sql).toContain("markdown LIKE '- {: %}[x] %'");
+    expect(sql).toContain("markdown LIKE '- {: %}[X] %'");
     expect(sql).toContain("LIMIT 200 OFFSET 400");
   });
 });
