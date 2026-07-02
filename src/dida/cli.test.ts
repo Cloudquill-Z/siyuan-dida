@@ -64,6 +64,25 @@ describe("resolveDidaCommand", () => {
     expect(calls).toEqual(["dida --version", "dida.cmd --version"]);
   });
 
+  test("rediscovers dida on Windows when a cached absolute path is stale", async () => {
+    const calls: string[] = [];
+    const result = await resolveDidaCommand(
+      "/Users/lance/.hermes/node/bin/dida",
+      async (command, args) => {
+        calls.push([command, ...args].join(" "));
+        if (command === "dida.cmd") {
+          return { stdout: "0.1.10\n", stderr: "" };
+        }
+        throw new Error("not found");
+      },
+      "win32",
+      "C:\\Users\\lance"
+    );
+
+    expect(result).toEqual({ command: "dida.cmd", version: "0.1.10" });
+    expect(calls).toEqual(["/Users/lance/.hermes/node/bin/dida --version", "dida.cmd --version"]);
+  });
+
   test("uses where.exe discovery on Windows when command shims are outside common paths", async () => {
     const result = await resolveDidaCommand(
       "dida",

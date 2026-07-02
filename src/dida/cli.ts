@@ -176,6 +176,9 @@ export async function resolveDidaCommand(
     };
   } catch (error) {
     if (!isBareCommand(configuredCommand)) {
+      if (platform === "win32") {
+        return resolveWindowsDidaCommand("dida", runner, home, [configuredCommand]);
+      }
       throw new Error(`Unable to run dida CLI: ${(error as Error).message}`);
     }
   }
@@ -215,9 +218,10 @@ export async function resolveDidaCommand(
 async function resolveWindowsDidaCommand(
   configuredCommand: string,
   runner: CommandRunner,
-  home: string
+  home: string,
+  previousTried: string[] = []
 ): Promise<ResolvedDidaCommand> {
-  const tried = new Set<string>([configuredCommand]);
+  const tried = new Set<string>([...previousTried, configuredCommand]);
   const candidates = [
     `${configuredCommand}.cmd`,
     `${configuredCommand}.exe`,
