@@ -183,12 +183,21 @@ describe("DidaCliClient", () => {
         "project-1",
         "--content",
         "来源：思源笔记",
+        "--all-day",
+        "--start-date",
+        "2026-07-02T00:00:00+0800",
         "--json"
       ]);
       return { stdout: JSON.stringify({ id: "task-1", projectId: "project-1" }), stderr: "" };
     });
 
-    await expect(client.createTask("project-1", "整理会议纪要", "来源：思源笔记")).resolves.toEqual({
+    await expect(
+      client.createTask("project-1", "整理会议纪要", {
+        content: "来源：思源笔记",
+        allDay: true,
+        startDate: "2026-07-02T00:00:00+0800"
+      })
+    ).resolves.toEqual({
       id: "task-1",
       projectId: "project-1"
     });

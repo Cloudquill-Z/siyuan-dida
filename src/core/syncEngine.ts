@@ -1,3 +1,4 @@
+import { localAllDayStart } from "./date";
 import { taskHash } from "./hash";
 import { parseTodoMarkdown } from "./todoParser";
 import type { DidaGateway, SiYuanGateway, SyncEvent, SyncRange, SyncRangeResult, SyncResult, SyncSettings, SiYuanTodoBlock } from "./types";
@@ -203,7 +204,11 @@ export class SyncEngine {
           });
           return;
         }
-        const created = await this.dida.createTask(targetProjectId, parsed.title, DIDA_TASK_SOURCE_CONTENT);
+        const created = await this.dida.createTask(targetProjectId, parsed.title, {
+          content: DIDA_TASK_SOURCE_CONTENT,
+          allDay: true,
+          startDate: localAllDayStart()
+        });
         if (parent.binding) {
           await this.dida.setTaskParent(created.projectId, created.id, parent.binding.taskId);
         }

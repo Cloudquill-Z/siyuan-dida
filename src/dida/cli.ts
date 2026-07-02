@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import type { CreateDidaTaskOptions } from "../core/types";
 
 export interface CommandResult {
   stdout: string;
@@ -277,7 +278,7 @@ export class DidaCliClient {
     return parseJson<DidaProject[]>(result.stdout);
   }
 
-  async createTask(projectId: string, title: string, content?: string): Promise<DidaTask> {
+  async createTask(projectId: string, title: string, options: CreateDidaTaskOptions = {}): Promise<DidaTask> {
     const args = [
       "task",
       "create",
@@ -286,8 +287,14 @@ export class DidaCliClient {
       "--project",
       projectId
     ];
-    if (content) {
-      args.push("--content", content);
+    if (options.content) {
+      args.push("--content", options.content);
+    }
+    if (options.allDay) {
+      args.push("--all-day");
+    }
+    if (options.startDate) {
+      args.push("--start-date", options.startDate);
     }
     args.push("--json");
     const result = await this.runner(this.command, args);

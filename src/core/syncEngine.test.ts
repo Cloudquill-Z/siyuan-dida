@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { taskHash } from "./hash";
 import { SyncEngine } from "./syncEngine";
-import type { DidaGateway, SiYuanGateway, SyncRange, SyncSettings, SiYuanTodoBlock } from "./types";
+import type { CreateDidaTaskOptions, DidaGateway, SiYuanGateway, SyncRange, SyncSettings, SiYuanTodoBlock } from "./types";
 
 function settings(): SyncSettings {
   return {
@@ -59,15 +59,15 @@ class FakeSiYuan implements SiYuanGateway {
 }
 
 class FakeDida implements DidaGateway {
-  public created: Array<{ projectId: string; title: string; content?: string }> = [];
+  public created: Array<{ projectId: string; title: string; options?: CreateDidaTaskOptions }> = [];
   public completed: Array<{ projectId: string; taskId: string }> = [];
   public updated: Array<{ projectId: string; taskId: string; title: string }> = [];
   public parents: Array<{ projectId: string; taskId: string; parentTaskId: string }> = [];
   public completedTasks = new Set<string>();
   public completedTaskError: Error | null = null;
 
-  async createTask(projectId: string, title: string, content?: string) {
-    this.created.push({ projectId, title, content });
+  async createTask(projectId: string, title: string, options?: CreateDidaTaskOptions) {
+    this.created.push({ projectId, title, options });
     return { id: `task-${this.created.length}`, projectId };
   }
 
@@ -102,7 +102,17 @@ describe("SyncEngine", () => {
     expect(result.scanned).toBe(1);
     expect(result.rangeResults[0]).toMatchObject({ rangeName: "工作", scanned: 1 });
     expect(result.events.some((event) => event.message.includes("创建滴答任务"))).toBe(true);
-    expect(dida.created).toEqual([{ projectId: "project-1", title: "整理会议纪要", content: "来源：思源笔记" }]);
+    expect(dida.created).toEqual([
+      {
+        projectId: "project-1",
+        title: "整理会议纪要",
+        options: {
+          content: "来源：思源笔记",
+          allDay: true,
+          startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T00:00:00[+-]\d{4}$/)
+        }
+      }
+    ]);
     expect(siyuan.attrs[0].attrs["custom-dida-task-id"]).toBe("task-1");
   });
 
@@ -117,8 +127,24 @@ describe("SyncEngine", () => {
 
     expect(result.created).toBe(2);
     expect(dida.created).toEqual([
-      { projectId: "project-1", title: "父任务", content: "来源：思源笔记" },
-      { projectId: "project-1", title: "子任务", content: "来源：思源笔记" }
+      {
+        projectId: "project-1",
+        title: "父任务",
+        options: {
+          content: "来源：思源笔记",
+          allDay: true,
+          startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T00:00:00[+-]\d{4}$/)
+        }
+      },
+      {
+        projectId: "project-1",
+        title: "子任务",
+        options: {
+          content: "来源：思源笔记",
+          allDay: true,
+          startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T00:00:00[+-]\d{4}$/)
+        }
+      }
     ]);
     expect(dida.parents).toEqual([{ projectId: "project-1", taskId: "task-2", parentTaskId: "task-1" }]);
     expect(siyuan.attrs.map((item) => item.blockId)).toEqual(["parent-block", "child-block"]);
@@ -135,7 +161,17 @@ describe("SyncEngine", () => {
     const result = await new SyncEngine(siyuan, dida).sync(settings());
 
     expect(result.created).toBe(1);
-    expect(dida.created).toEqual([{ projectId: "project-1", title: "子任务", content: "来源：思源笔记" }]);
+    expect(dida.created).toEqual([
+      {
+        projectId: "project-1",
+        title: "子任务",
+        options: {
+          content: "来源：思源笔记",
+          allDay: true,
+          startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T00:00:00[+-]\d{4}$/)
+        }
+      }
+    ]);
     expect(dida.parents).toEqual([{ projectId: "project-1", taskId: "task-1", parentTaskId: "parent-task" }]);
   });
 
@@ -230,7 +266,17 @@ describe("SyncEngine", () => {
     expect(result.created).toBe(1);
     expect(result.failed).toBe(1);
     expect(result.failures[0].message).toContain("滴答已完成任务读取失败");
-    expect(dida.created).toEqual([{ projectId: "project-1", title: "整理会议纪要", content: "来源：思源笔记" }]);
+    expect(dida.created).toEqual([
+      {
+        projectId: "project-1",
+        title: "整理会议纪要",
+        options: {
+          content: "来源：思源笔记",
+          allDay: true,
+          startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T00:00:00[+-]\d{4}$/)
+        }
+      }
+    ]);
   });
 
   test("updates Dida title when a synced SiYuan todo title changes", async () => {

@@ -1,11 +1,11 @@
-import type { DidaGateway } from "../core/types";
+import type { CreateDidaTaskOptions, DidaGateway } from "../core/types";
 import { DidaCliClient } from "./cli";
 
 export class DidaCliGateway implements DidaGateway {
   constructor(private readonly client: DidaCliClient) {}
 
-  createTask(projectId: string, title: string, content?: string) {
-    return this.client.createTask(projectId, title, content);
+  createTask(projectId: string, title: string, options?: CreateDidaTaskOptions) {
+    return this.client.createTask(projectId, title, options);
   }
 
   async updateTaskTitle(projectId: string, taskId: string, title: string): Promise<void> {

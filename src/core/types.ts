@@ -71,8 +71,14 @@ export interface SiYuanGateway {
   markBlockCompleted(blockId: string): Promise<void>;
 }
 
+export interface CreateDidaTaskOptions {
+  content?: string;
+  allDay?: boolean;
+  startDate?: string;
+}
+
 export interface DidaGateway {
-  createTask(projectId: string, title: string, content?: string): Promise<{ id: string; projectId: string }>;
+  createTask(projectId: string, title: string, options?: CreateDidaTaskOptions): Promise<{ id: string; projectId: string }>;
   updateTaskTitle(projectId: string, taskId: string, title: string): Promise<void>;
   setTaskParent(projectId: string, taskId: string, parentTaskId: string): Promise<void>;
   completeTask(projectId: string, taskId: string): Promise<void>;
