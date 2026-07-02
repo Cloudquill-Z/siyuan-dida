@@ -3,6 +3,7 @@ import type { SyncRange } from "../core/types";
 import { DidaCliClient, type DidaProject, resolveDidaCommand } from "../dida/cli";
 import { listNotebooks, type SiYuanNotebook } from "../siyuan/api";
 import type { PluginSettings } from "./defaults";
+import { getResolvedCliPathForCurrentDevice, withResolvedCliPathForCurrentDevice } from "./deviceCli";
 import { formatSyncLogs } from "./logFormat";
 import { createEmptyRange, prepareRangesForSave } from "./ranges";
 
@@ -99,9 +100,15 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
     rangesEl.replaceChildren(...state.ranges.map((range, index) => renderRange(range, index, state, renderRanges)));
   };
 
+  const rememberResolvedCliPath = async (resolvedCommand: string) => {
+    options.settings = withResolvedCliPathForCurrentDevice(options.settings, resolvedCommand);
+    await options.onSave(options.settings);
+  };
+
   root.querySelector('[data-action="test"]')?.addEventListener("click", async () => {
     try {
       const resolved = await resolveDidaCommand(cliCommand.value || "dida");
+      await rememberResolvedCliPath(resolved.command);
       showMessage(`Dida CLI 可用：${resolved.command} (${resolved.version})`);
       state.projects = await new DidaCliClient(resolved.command).listProjects();
       renderRanges();
@@ -113,6 +120,7 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
   root.querySelector('[data-action="loadProjects"]')?.addEventListener("click", async () => {
     try {
       const resolved = await resolveDidaCommand(cliCommand.value || "dida");
+      await rememberResolvedCliPath(resolved.command);
       state.projects = await new DidaCliClient(resolved.command).listProjects();
       renderRanges();
       showMessage("滴答清单已刷新");
@@ -180,7 +188,7 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
     })
     .catch(() => undefined);
 
-  void resolveDidaCommand(options.settings.resolvedCliPath || options.settings.cliCommand || "dida")
+  void resolveDidaCommand(getResolvedCliPathForCurrentDevice(options.settings) || options.settings.cliCommand || "dida")
     .then((resolved) => new DidaCliClient(resolved.command).listProjects())
     .then((projects) => {
       state.projects = projects;

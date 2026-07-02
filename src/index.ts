@@ -4,6 +4,7 @@ import { SyncEngine } from "./core/syncEngine";
 import { resolveDidaCommand, DidaCliClient } from "./dida/cli";
 import { DidaCliGateway } from "./dida/gateway";
 import { DEFAULT_SETTINGS, normalizeSettings, type PluginSettings } from "./settings/defaults";
+import { getResolvedCliPathForCurrentDevice, withResolvedCliPathForCurrentDevice } from "./settings/deviceCli";
 import { summarizeSyncLog } from "./settings/logFormat";
 import { buildSettingsPanel } from "./settings/settingsPanel";
 import { SiYuanRepository } from "./siyuan/repository";
@@ -111,8 +112,8 @@ export default class SiyuanDidaPlugin extends Plugin {
 
     this.syncRunning = true;
     try {
-      const resolved = await resolveDidaCommand(this.settings.resolvedCliPath || this.settings.cliCommand || "dida");
-      this.settings.resolvedCliPath = resolved.command;
+      const resolved = await resolveDidaCommand(getResolvedCliPathForCurrentDevice(this.settings) || this.settings.cliCommand || "dida");
+      this.settings = withResolvedCliPathForCurrentDevice(this.settings, resolved.command);
       const didaGateway = new DidaCliGateway(new DidaCliClient(resolved.command));
       const engine = new SyncEngine(new SiYuanRepository(), didaGateway);
       const result = await engine.sync({

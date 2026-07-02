@@ -3,6 +3,7 @@ import type { SyncRange, SyncResult } from "../core/types";
 export interface PluginSettings {
   cliCommand: string;
   resolvedCliPath: string;
+  resolvedCliPaths: Record<string, string>;
   autoSync: boolean;
   syncIntervalSeconds: number;
   syncOnStartup: boolean;
@@ -14,6 +15,7 @@ export interface PluginSettings {
 export const DEFAULT_SETTINGS: PluginSettings = {
   cliCommand: "dida",
   resolvedCliPath: "",
+  resolvedCliPaths: {},
   autoSync: false,
   syncIntervalSeconds: 15,
   syncOnStartup: false,
@@ -26,6 +28,7 @@ export function normalizeSettings(value: Partial<PluginSettings> | null | undefi
   return {
     ...DEFAULT_SETTINGS,
     ...value,
+    resolvedCliPaths: value?.resolvedCliPaths ?? {},
     ranges: value?.ranges ?? [],
     logs: value?.logs ?? []
   };
