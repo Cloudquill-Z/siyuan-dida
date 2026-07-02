@@ -2,8 +2,12 @@ import { defineConfig } from "vite";
 import { resolve } from "node:path";
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import packageJson from "./package.json";
 
 export default defineConfig({
+  define: {
+    __PLUGIN_VERSION__: JSON.stringify(packageJson.version)
+  },
   plugins: [
     {
       name: "copy-plugin-assets",

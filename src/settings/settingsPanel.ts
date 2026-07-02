@@ -27,7 +27,10 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
         <div class="dida-sync-title">连接与同步</div>
         <div class="dida-sync-muted">每台设备会自动发现本机 dida，也可以手动指定命令或绝对路径。</div>
       </div>
-      <button class="b3-button b3-button--text" data-action="save">保存设置</button>
+      <div class="dida-sync-summary__actions">
+        <span class="dida-sync-version">v${escapeHtml(__PLUGIN_VERSION__)}</span>
+        <button class="b3-button b3-button--text" data-action="save">保存设置</button>
+      </div>
     </div>
 
     <div class="dida-sync-grid">

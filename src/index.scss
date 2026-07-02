@@ -83,6 +83,21 @@
   gap: 8px;
 }
 
+.dida-sync-summary__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.dida-sync-version {
+  color: var(--b3-theme-on-surface);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
 .dida-sync-field {
   display: grid;
   gap: 6px;

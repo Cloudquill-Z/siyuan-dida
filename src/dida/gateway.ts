@@ -4,8 +4,8 @@ import { DidaCliClient } from "./cli";
 export class DidaCliGateway implements DidaGateway {
   constructor(private readonly client: DidaCliClient) {}
 
-  createTask(projectId: string, title: string) {
-    return this.client.createTask(projectId, title);
+  createTask(projectId: string, title: string, content?: string) {
+    return this.client.createTask(projectId, title, content);
   }
 
   async updateTaskTitle(projectId: string, taskId: string, title: string): Promise<void> {

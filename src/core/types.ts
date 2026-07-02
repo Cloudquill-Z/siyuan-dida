@@ -72,7 +72,7 @@ export interface SiYuanGateway {
 }
 
 export interface DidaGateway {
-  createTask(projectId: string, title: string): Promise<{ id: string; projectId: string }>;
+  createTask(projectId: string, title: string, content?: string): Promise<{ id: string; projectId: string }>;
   updateTaskTitle(projectId: string, taskId: string, title: string): Promise<void>;
   setTaskParent(projectId: string, taskId: string, parentTaskId: string): Promise<void>;
   completeTask(projectId: string, taskId: string): Promise<void>;

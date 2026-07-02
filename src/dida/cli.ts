@@ -277,16 +277,20 @@ export class DidaCliClient {
     return parseJson<DidaProject[]>(result.stdout);
   }
 
-  async createTask(projectId: string, title: string): Promise<DidaTask> {
-    const result = await this.runner(this.command, [
+  async createTask(projectId: string, title: string, content?: string): Promise<DidaTask> {
+    const args = [
       "task",
       "create",
       "--title",
       title,
       "--project",
-      projectId,
-      "--json"
-    ]);
+      projectId
+    ];
+    if (content) {
+      args.push("--content", content);
+    }
+    args.push("--json");
+    const result = await this.runner(this.command, args);
     return parseJson<DidaTask>(result.stdout);
   }
 

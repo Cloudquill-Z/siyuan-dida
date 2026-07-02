@@ -9,6 +9,7 @@ const LAST_HASH_ATTR = "custom-dida-last-hash";
 const SYNC_STATE_ATTR = "custom-dida-sync-state";
 const SYNC_STATE_SYNCED = "synced";
 const SYNC_STATE_COMPLETED_SYNCED = "completed-synced";
+const DIDA_TASK_SOURCE_CONTENT = "来源：思源笔记";
 
 interface TaskBinding {
   taskId: string;
@@ -202,7 +203,7 @@ export class SyncEngine {
           });
           return;
         }
-        const created = await this.dida.createTask(targetProjectId, parsed.title);
+        const created = await this.dida.createTask(targetProjectId, parsed.title, DIDA_TASK_SOURCE_CONTENT);
         if (parent.binding) {
           await this.dida.setTaskParent(created.projectId, created.id, parent.binding.taskId);
         }
