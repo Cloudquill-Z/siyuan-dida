@@ -2,7 +2,7 @@ import { showMessage } from "siyuan";
 import type { SyncRange } from "../core/types";
 import { DidaCliClient, type DidaProject, resolveDidaCommand } from "../dida/cli";
 import { listNotebooks, type SiYuanNotebook } from "../siyuan/api";
-import type { PluginSettings } from "./defaults";
+import { settingsForSave, type PluginSettings } from "./defaults";
 import { getResolvedCliPathForCurrentDevice, withResolvedCliPathForCurrentDevice } from "./deviceCli";
 import { formatSyncLogs } from "./logFormat";
 import { createEmptyRange, prepareRangesForSave } from "./ranges";
@@ -150,13 +150,12 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
   root.querySelector('[data-action="save"]')?.addEventListener("click", async () => {
     try {
       const ranges = prepareRangesForSave(state.ranges);
-      await options.onSave({
-        ...options.settings,
+      await options.onSave(settingsForSave(options.settings, {
         cliCommand: cliCommand.value || "dida",
         autoSync: autoSync.checked,
         syncIntervalSeconds: Number(syncIntervalSeconds.value || 15),
         ranges
-      });
+      }));
       showMessage("滴答同步设置已保存");
     } catch (error) {
       showMessage(`设置保存失败：${(error as Error).message}`, 5000, "error");

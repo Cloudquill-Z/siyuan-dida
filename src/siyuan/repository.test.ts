@@ -35,6 +35,41 @@ describe("buildTodoBlockSql", () => {
     expect(sql).toContain("b.markdown LIKE '- {: %}[X] %'");
     expect(sql).toContain("LIMIT 200 OFFSET 400");
   });
+
+  test("matches only the selected document and its descendants when children are included", () => {
+    const sql = buildTodoBlockSql(
+      {
+        id: "range-1",
+        name: "工作",
+        notebookId: "box-1",
+        hpathPrefix: "/工作",
+        includeChildren: true,
+        targetProjectId: "project-1",
+        targetProjectName: "工作"
+      },
+      200
+    );
+
+    expect(sql).toContain("(b.hpath = '/工作' OR b.hpath LIKE '/工作/%' ESCAPE '\\')");
+    expect(sql).not.toContain("b.hpath LIKE '/工作%'");
+  });
+
+  test("escapes SQL LIKE wildcards in child path prefixes", () => {
+    const sql = buildTodoBlockSql(
+      {
+        id: "range-1",
+        name: "版本_100%",
+        notebookId: "box-1",
+        hpathPrefix: "/版本_100%",
+        includeChildren: true,
+        targetProjectId: "project-1",
+        targetProjectName: "工作"
+      },
+      200
+    );
+
+    expect(sql).toContain("(b.hpath = '/版本_100%' OR b.hpath LIKE '/版本\\_100\\%/%' ESCAPE '\\')");
+  });
 });
 
 describe("SiYuanRepository", () => {

@@ -33,3 +33,15 @@ export function normalizeSettings(value: Partial<PluginSettings> | null | undefi
     logs: value?.logs ?? []
   };
 }
+
+export function settingsForSave(current: PluginSettings, updates: Partial<PluginSettings>): PluginSettings {
+  const next = normalizeSettings({
+    ...current,
+    ...updates
+  });
+  if (next.cliCommand !== current.cliCommand) {
+    next.resolvedCliPath = "";
+    next.resolvedCliPaths = {};
+  }
+  return next;
+}

@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, sep } from "node:path";
 import type { CreateDidaTaskOptions } from "../core/types";
 
 export interface CommandResult {
@@ -84,7 +84,7 @@ export function resolveWindowsCmdShim(
   }
 
   const baseDir = dirname(shimPath);
-  const scriptPath = join(baseDir, scriptMatch[1]);
+  const scriptPath = join(baseDir, scriptMatch[1].replace(/\\/g, sep));
   if (!existsSync(scriptPath)) {
     return undefined;
   }
