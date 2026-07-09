@@ -73,6 +73,27 @@ describe("buildTodoBlockSql", () => {
 });
 
 describe("SiYuanRepository", () => {
+  test("treats a null SQL query result as an empty todo list", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      return new Response(JSON.stringify({ code: 0, data: null }), { status: 200 });
+    });
+
+    await expect(
+      new SiYuanRepository().listTodoBlocks(
+        {
+          id: "range-1",
+          name: "工作",
+          notebookId: "box-1",
+          hpathPrefix: "/工作",
+          includeChildren: true,
+          targetProjectId: "project-1",
+          targetProjectName: "工作"
+        },
+        200
+      )
+    ).resolves.toEqual([]);
+  });
+
   test("marks a block completed when getBlockKramdown returns kramdown", async () => {
     const calls: Array<{ path: string; body: unknown }> = [];
     vi.spyOn(globalThis, "fetch").mockImplementation(async (path, init) => {

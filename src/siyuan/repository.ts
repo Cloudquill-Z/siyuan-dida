@@ -18,7 +18,7 @@ interface KramdownBlock {
 export class SiYuanRepository implements SiYuanGateway {
   async listTodoBlocks(range: SyncRange, limit: number, offset = 0): Promise<SiYuanTodoBlock[]> {
     const sql = buildTodoBlockSql(range, limit, offset);
-    const rows = await kernelApi<SqlBlockRow[]>("/api/query/sql", { stmt: sql });
+    const rows = (await kernelApi<SqlBlockRow[] | null>("/api/query/sql", { stmt: sql })) ?? [];
     const blocks = await Promise.all(
       rows.map(async (row) => ({
         id: row.id,
