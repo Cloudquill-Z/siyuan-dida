@@ -63,7 +63,7 @@ export class SiYuanRepository implements SiYuanGateway {
 
 export function buildTodoBlockSql(range: SyncRange, limit: number, offset = 0): string {
   const hpathClause = range.includeChildren
-    ? `(b.hpath = '${escapeSql(range.hpathPrefix)}' OR b.hpath LIKE '${escapeSqlLike(range.hpathPrefix)}/%' ESCAPE '\\')`
+    ? `(b.hpath = '${escapeSql(range.hpathPrefix)}' OR instr(b.hpath, '${escapeSql(range.hpathPrefix)}/') = 1)`
     : `b.hpath = '${escapeSql(range.hpathPrefix)}'`;
   const incompleteClause = `(
         b.markdown LIKE '- [ ] %'
@@ -121,8 +121,4 @@ export function buildTodoBlockSql(range: SyncRange, limit: number, offset = 0): 
 
 function escapeSql(value: string): string {
   return value.replace(/'/g, "''");
-}
-
-function escapeSqlLike(value: string): string {
-  return escapeSql(value).replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }

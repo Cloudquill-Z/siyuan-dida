@@ -50,11 +50,12 @@ describe("buildTodoBlockSql", () => {
       200
     );
 
-    expect(sql).toContain("(b.hpath = '/工作' OR b.hpath LIKE '/工作/%' ESCAPE '\\')");
+    expect(sql).toContain("(b.hpath = '/工作' OR instr(b.hpath, '/工作/') = 1)");
     expect(sql).not.toContain("b.hpath LIKE '/工作%'");
+    expect(sql).not.toContain("ESCAPE");
   });
 
-  test("escapes SQL LIKE wildcards in child path prefixes", () => {
+  test("matches literal wildcard characters in child path prefixes", () => {
     const sql = buildTodoBlockSql(
       {
         id: "range-1",
@@ -68,7 +69,8 @@ describe("buildTodoBlockSql", () => {
       200
     );
 
-    expect(sql).toContain("(b.hpath = '/版本_100%' OR b.hpath LIKE '/版本\\_100\\%/%' ESCAPE '\\')");
+    expect(sql).toContain("(b.hpath = '/版本_100%' OR instr(b.hpath, '/版本_100%/') = 1)");
+    expect(sql).not.toContain("LIKE '/版本");
   });
 });
 
