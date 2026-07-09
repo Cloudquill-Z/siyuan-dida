@@ -109,7 +109,7 @@ describe("SyncEngine", () => {
         options: {
           content: "来源：思源笔记",
           allDay: true,
-          startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T00:00:00[+-]\d{4}$/)
+          startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
         }
       }
     ]);
@@ -133,7 +133,7 @@ describe("SyncEngine", () => {
         options: {
           content: "来源：思源笔记",
           allDay: true,
-          startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T00:00:00[+-]\d{4}$/)
+          startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
         }
       },
       {
@@ -142,7 +142,7 @@ describe("SyncEngine", () => {
         options: {
           content: "来源：思源笔记",
           allDay: true,
-          startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T00:00:00[+-]\d{4}$/)
+          startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
         }
       }
     ]);
@@ -168,7 +168,7 @@ describe("SyncEngine", () => {
         options: {
           content: "来源：思源笔记",
           allDay: true,
-          startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T00:00:00[+-]\d{4}$/)
+          startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
         }
       }
     ]);
@@ -273,7 +273,7 @@ describe("SyncEngine", () => {
         options: {
           content: "来源：思源笔记",
           allDay: true,
-          startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T00:00:00[+-]\d{4}$/)
+          startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
         }
       }
     ]);

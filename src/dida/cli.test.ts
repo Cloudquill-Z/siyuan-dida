@@ -185,7 +185,7 @@ describe("DidaCliClient", () => {
         "来源：思源笔记",
         "--all-day",
         "--start-date",
-        "2026-07-02T00:00:00+0800",
+        "2026-07-02",
         "--json"
       ]);
       return { stdout: JSON.stringify({ id: "task-1", projectId: "project-1" }), stderr: "" };
@@ -195,7 +195,7 @@ describe("DidaCliClient", () => {
       client.createTask("project-1", "整理会议纪要", {
         content: "来源：思源笔记",
         allDay: true,
-        startDate: "2026-07-02T00:00:00+0800"
+        startDate: "2026-07-02"
       })
     ).resolves.toEqual({
       id: "task-1",
