@@ -8,6 +8,7 @@ import { getResolvedCliPathForCurrentDevice, withResolvedCliPathForCurrentDevice
 import { summarizeSyncLog } from "./settings/logFormat";
 import { buildSettingsPanel } from "./settings/settingsPanel";
 import { SiYuanRepository } from "./siyuan/repository";
+import { setSyncTooltip } from "./syncTooltip";
 import type { SyncResult } from "./core/types";
 
 const STORAGE_NAME = "settings.json";
@@ -16,24 +17,17 @@ export default class SiyuanDidaPlugin extends Plugin {
   private settings!: PluginSettings;
   private syncTimer: number | undefined;
   private syncRunning = false;
-  private statusElement!: HTMLElement;
+  private syncButton!: HTMLElement;
 
   async onload() {
     this.settings = normalizeSettings(await this.loadData(STORAGE_NAME));
-    this.statusElement = document.createElement("span");
-    this.statusElement.className = "dida-sync-status";
-    this.statusElement.textContent = "滴答：待同步";
-    this.addStatusBar({
-      element: this.statusElement,
-      position: "right"
-    });
-
-    this.addTopBar({
+    this.syncButton = this.addTopBar({
       icon: "iconRefresh",
       title: "同步滴答清单",
       position: "right",
       callback: () => void this.runSync()
     });
+    this.updateStatus("滴答：待同步");
 
     this.addCommand({
       langKey: "sync-dida-now",
@@ -144,8 +138,8 @@ export default class SiyuanDidaPlugin extends Plugin {
   }
 
   private updateStatus(text: string) {
-    if (this.statusElement) {
-      this.statusElement.textContent = text;
+    if (this.syncButton) {
+      setSyncTooltip(this.syncButton, text);
     }
   }
 
