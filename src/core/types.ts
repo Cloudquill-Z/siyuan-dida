@@ -11,8 +11,11 @@ export interface SyncRange {
 
 export interface SyncSettings {
   maxTasksPerRun: number;
+  newTaskDate?: NewTaskDate;
   ranges: SyncRange[];
 }
+
+export type NewTaskDate = "today" | "none";
 
 export interface SiYuanTodoBlock {
   id: string;

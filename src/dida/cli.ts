@@ -255,7 +255,7 @@ async function resolveWindowsDidaCommand(
   }
 
   throw new Error(
-    `Unable to run dida CLI. Tried ${Array.from(tried).join(", ")}. 请确认 dida 已安装并在 PATH 中，或在设置里填写 dida.cmd 的绝对路径。`
+    `Unable to run dida CLI. Tried ${Array.from(tried).join(", ")}. Install dida, add it to PATH, or provide its absolute path in plugin settings.`
   );
 }
 

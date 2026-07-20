@@ -6,17 +6,21 @@ import { settingsForSave, type PluginSettings } from "./defaults";
 import { getResolvedCliPathForCurrentDevice, withResolvedCliPathForCurrentDevice } from "./deviceCli";
 import { formatSyncLogs } from "./logFormat";
 import { createEmptyRange, prepareRangesForSave } from "./ranges";
+import type { Translate } from "../i18n";
 
 export interface SettingsPanelOptions {
   settings: PluginSettings;
+  t: Translate;
   onSave(settings: PluginSettings): Promise<void>;
 }
 
 export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
+  const { t } = options;
   const state = {
     ranges: options.settings.ranges.length > 0 ? [...options.settings.ranges] : [createEmptyRange(1)],
     notebooks: [] as SiYuanNotebook[],
-    projects: [] as DidaProject[]
+    projects: [] as DidaProject[],
+    t
   };
 
   const root = document.createElement("div");
@@ -24,12 +28,12 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
   root.innerHTML = `
     <div class="dida-sync-summary">
       <div>
-        <div class="dida-sync-title">连接与同步</div>
-        <div class="dida-sync-muted">每台设备会自动发现本机 dida，也可以手动指定命令或绝对路径。</div>
+        <div class="dida-sync-title">${t("connectionAndSync")}</div>
+        <div class="dida-sync-muted">${t("deviceDiscovery")}</div>
       </div>
       <div class="dida-sync-summary__actions">
         <span class="dida-sync-version">v${escapeHtml(__PLUGIN_VERSION__)}</span>
-        <button class="b3-button b3-button--text" data-action="save">保存设置</button>
+        <button class="b3-button b3-button--text" data-action="save">${t("saveSettings")}</button>
       </div>
     </div>
 
@@ -37,24 +41,31 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
       <section class="dida-sync-section">
         <div class="dida-sync-section__title">Dida CLI</div>
         <label class="dida-sync-field">
-          <span>命令或路径</span>
+          <span>${t("commandOrPath")}</span>
           <input class="b3-text-field" data-field="cliCommand" placeholder="dida" />
         </label>
         <div class="dida-sync-actions">
-          <button class="b3-button" data-action="test">测试连接</button>
-          <button class="b3-button b3-button--outline" data-action="loadProjects">刷新滴答清单</button>
+          <button class="b3-button" data-action="test">${t("testConnection")}</button>
+          <button class="b3-button b3-button--outline" data-action="loadProjects">${t("refreshProjects")}</button>
         </div>
       </section>
 
       <section class="dida-sync-section">
-        <div class="dida-sync-section__title">自动同步</div>
+        <div class="dida-sync-section__title">${t("automaticSync")}</div>
         <label class="dida-sync-toggle">
           <input type="checkbox" data-field="autoSync" />
-          <span>开启自动同步</span>
+          <span>${t("enableAutomaticSync")}</span>
         </label>
         <label class="dida-sync-field">
-          <span>同步间隔（秒）</span>
+          <span>${t("syncInterval")}</span>
           <input class="b3-text-field" data-field="syncIntervalSeconds" type="number" min="5" />
+        </label>
+        <label class="dida-sync-field">
+          <span>${t("newTaskDate")}</span>
+          <select class="b3-select fn__block" data-field="newTaskDate">
+            <option value="today">${t("newTaskDateToday")}</option>
+            <option value="none">${t("newTaskDateNone")}</option>
+          </select>
         </label>
       </section>
     </div>
@@ -62,12 +73,12 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
     <section class="dida-sync-section">
       <div class="dida-sync-section__bar">
         <div>
-          <div class="dida-sync-section__title">同步范围</div>
-          <div class="dida-sync-muted">选择思源笔记本、文档路径和目标滴答清单。</div>
+          <div class="dida-sync-section__title">${t("syncRanges")}</div>
+          <div class="dida-sync-muted">${t("selectSourceAndTarget")}</div>
         </div>
         <div class="dida-sync-actions">
-          <button class="b3-button b3-button--outline" data-action="loadNotebooks">刷新笔记本</button>
-          <button class="b3-button" data-action="addRange">新增范围</button>
+          <button class="b3-button b3-button--outline" data-action="loadNotebooks">${t("refreshNotebooks")}</button>
+          <button class="b3-button" data-action="addRange">${t("addRange")}</button>
         </div>
       </div>
       <div class="dida-sync-ranges" data-field="ranges"></div>
@@ -76,12 +87,12 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
     <section class="dida-sync-section">
       <div class="dida-sync-section__bar">
         <div>
-          <div class="dida-sync-section__title">同步日志</div>
-          <div class="dida-sync-muted">记录扫描范围、候选任务数、跳过原因和失败信息。</div>
+          <div class="dida-sync-section__title">${t("syncLogs")}</div>
+          <div class="dida-sync-muted">${t("syncLogHelp")}</div>
         </div>
         <div class="dida-sync-actions">
-          <button class="b3-button b3-button--outline" data-action="copyLogs">复制日志</button>
-          <button class="b3-button b3-button--outline" data-action="clearLogs">清空日志</button>
+          <button class="b3-button b3-button--outline" data-action="copyLogs">${t("copyLogs")}</button>
+          <button class="b3-button b3-button--outline" data-action="clearLogs">${t("clearLogs")}</button>
         </div>
       </div>
       <pre class="dida-sync-log" data-field="logs"></pre>
@@ -91,12 +102,14 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
   const cliCommand = root.querySelector<HTMLInputElement>('[data-field="cliCommand"]')!;
   const autoSync = root.querySelector<HTMLInputElement>('[data-field="autoSync"]')!;
   const syncIntervalSeconds = root.querySelector<HTMLInputElement>('[data-field="syncIntervalSeconds"]')!;
+  const newTaskDate = root.querySelector<HTMLSelectElement>('[data-field="newTaskDate"]')!;
   const rangesEl = root.querySelector<HTMLElement>('[data-field="ranges"]')!;
   const logs = root.querySelector<HTMLElement>('[data-field="logs"]')!;
 
   cliCommand.value = options.settings.cliCommand;
   autoSync.checked = options.settings.autoSync;
   syncIntervalSeconds.value = String(options.settings.syncIntervalSeconds);
+  newTaskDate.value = options.settings.newTaskDate;
   logs.textContent = formatSyncLogs(options.settings.logs.slice(0, 10));
 
   const renderRanges = () => {
@@ -112,11 +125,11 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
     try {
       const resolved = await resolveDidaCommand(cliCommand.value || "dida");
       await rememberResolvedCliPath(resolved.command);
-      showMessage(`Dida CLI 可用：${resolved.command} (${resolved.version})`);
+      showMessage(t("cliAvailable", { command: resolved.command, version: resolved.version }));
       state.projects = await new DidaCliClient(resolved.command).listProjects();
       renderRanges();
     } catch (error) {
-      showMessage(`Dida CLI 不可用：${(error as Error).message}`, 5000, "error");
+      showMessage(t("cliUnavailable", { message: (error as Error).message }), 5000, "error");
     }
   });
 
@@ -126,9 +139,9 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
       await rememberResolvedCliPath(resolved.command);
       state.projects = await new DidaCliClient(resolved.command).listProjects();
       renderRanges();
-      showMessage("滴答清单已刷新");
+      showMessage(t("projectsRefreshed"));
     } catch (error) {
-      showMessage(`刷新滴答清单失败：${(error as Error).message}`, 5000, "error");
+      showMessage(t("projectsRefreshFailed", { message: (error as Error).message }), 5000, "error");
     }
   });
 
@@ -136,9 +149,9 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
     try {
       state.notebooks = await listNotebooks();
       renderRanges();
-      showMessage("笔记本已刷新");
+      showMessage(t("notebooksRefreshed"));
     } catch (error) {
-      showMessage(`刷新笔记本失败：${(error as Error).message}`, 5000, "error");
+      showMessage(t("notebooksRefreshFailed", { message: (error as Error).message }), 5000, "error");
     }
   });
 
@@ -153,21 +166,22 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
       await options.onSave(settingsForSave(options.settings, {
         cliCommand: cliCommand.value || "dida",
         autoSync: autoSync.checked,
+        newTaskDate: newTaskDate.value === "none" ? "none" : "today",
         syncIntervalSeconds: Number(syncIntervalSeconds.value || 15),
         ranges
       }));
-      showMessage("滴答同步设置已保存");
+      showMessage(t("settingsSaved"));
     } catch (error) {
-      showMessage(`设置保存失败：${(error as Error).message}`, 5000, "error");
+      showMessage(t("settingsSaveFailed", { message: (error as Error).message }), 5000, "error");
     }
   });
 
   root.querySelector('[data-action="copyLogs"]')?.addEventListener("click", async () => {
     try {
       await navigator.clipboard.writeText(formatSyncLogs(options.settings.logs.slice(0, 20)));
-      showMessage("同步日志已复制");
+      showMessage(t("logsCopied"));
     } catch (error) {
-      showMessage(`复制日志失败：${(error as Error).message}`, 5000, "error");
+      showMessage(t("logsCopyFailed", { message: (error as Error).message }), 5000, "error");
     }
   });
 
@@ -176,9 +190,9 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
       options.settings.logs = [];
       logs.textContent = formatSyncLogs([]);
       await options.onSave(options.settings);
-      showMessage("同步日志已清空");
+      showMessage(t("logsCleared"));
     } catch (error) {
-      showMessage(`清空日志失败：${(error as Error).message}`, 5000, "error");
+      showMessage(t("logsClearFailed", { message: (error as Error).message }), 5000, "error");
     }
   });
 
@@ -204,40 +218,41 @@ export function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
 function renderRange(
   range: SyncRange,
   index: number,
-  state: { ranges: SyncRange[]; notebooks: SiYuanNotebook[]; projects: DidaProject[] },
+  state: { ranges: SyncRange[]; notebooks: SiYuanNotebook[]; projects: DidaProject[]; t: Translate },
   rerender: () => void
 ): HTMLElement {
   const wrapper = document.createElement("div");
+  const { t } = state;
   wrapper.className = "dida-sync-range";
   wrapper.innerHTML = `
     <div class="dida-sync-range__header">
       <div>
-        <div class="dida-sync-range__title">${escapeHtml(range.name || `同步范围 ${index + 1}`)}</div>
-        <div class="dida-sync-muted">范围 ${index + 1}</div>
+        <div class="dida-sync-range__title">${escapeHtml(range.name || t("rangeFallback", { number: index + 1 }))}</div>
+        <div class="dida-sync-muted">${t("rangeNumber", { number: index + 1 })}</div>
       </div>
-      <button class="b3-button b3-button--outline" data-action="removeRange">删除</button>
+      <button class="b3-button b3-button--outline" data-action="removeRange">${t("delete")}</button>
     </div>
     <div class="dida-sync-range__grid">
       <label class="dida-sync-field">
-        <span>范围名称</span>
+        <span>${t("rangeName")}</span>
         <input class="b3-text-field" data-field="name" />
       </label>
       <label class="dida-sync-field">
-        <span>笔记本</span>
-        ${renderNotebookControl(range, state.notebooks)}
+        <span>${t("notebook")}</span>
+        ${renderNotebookControl(range, state.notebooks, t)}
       </label>
       <label class="dida-sync-field">
-        <span>文档路径</span>
-        <input class="b3-text-field" data-field="hpathPrefix" placeholder="/工作日志" />
+        <span>${t("documentPath")}</span>
+        <input class="b3-text-field" data-field="hpathPrefix" placeholder="${t("documentPathPlaceholder")}" />
       </label>
       <label class="dida-sync-field">
-        <span>滴答清单</span>
-        ${renderProjectControl(range, state.projects)}
+        <span>${t("didaList")}</span>
+        ${renderProjectControl(range, state.projects, t)}
       </label>
     </div>
     <label class="dida-sync-toggle dida-sync-toggle--compact">
       <input type="checkbox" data-field="includeChildren" />
-      <span>包含子文档</span>
+      <span>${t("includeChildDocuments")}</span>
     </label>
   `;
 
@@ -269,13 +284,13 @@ function renderRange(
   return wrapper;
 }
 
-function renderNotebookControl(range: SyncRange, notebooks: SiYuanNotebook[]): string {
+function renderNotebookControl(range: SyncRange, notebooks: SiYuanNotebook[], t: Translate): string {
   if (notebooks.length === 0) {
-    return `<input class="b3-text-field" data-field="notebookId" placeholder="笔记本 ID" value="${escapeAttribute(range.notebookId)}" />`;
+    return `<input class="b3-text-field" data-field="notebookId" placeholder="${t("notebookId")}" value="${escapeAttribute(range.notebookId)}" />`;
   }
 
   const options = [
-    `<option value="">选择笔记本</option>`,
+    `<option value="">${t("selectNotebook")}</option>`,
     ...notebooks.map(
       (notebook) =>
         `<option value="${escapeAttribute(notebook.id)}" ${notebook.id === range.notebookId ? "selected" : ""}>${escapeHtml(notebook.name)}</option>`
@@ -284,13 +299,13 @@ function renderNotebookControl(range: SyncRange, notebooks: SiYuanNotebook[]): s
   return `<select class="b3-select fn__block" data-field="notebookId">${options}</select>`;
 }
 
-function renderProjectControl(range: SyncRange, projects: DidaProject[]): string {
+function renderProjectControl(range: SyncRange, projects: DidaProject[], t: Translate): string {
   if (projects.length === 0) {
-    return `<input class="b3-text-field" data-field="targetProjectId" placeholder="滴答清单 ID" value="${escapeAttribute(range.targetProjectId)}" />`;
+    return `<input class="b3-text-field" data-field="targetProjectId" placeholder="${t("didaListId")}" value="${escapeAttribute(range.targetProjectId)}" />`;
   }
 
   const options = [
-    `<option value="">选择滴答清单</option>`,
+    `<option value="">${t("selectDidaList")}</option>`,
     ...projects.map(
       (project) =>
         `<option value="${escapeAttribute(project.id)}" ${project.id === range.targetProjectId ? "selected" : ""}>${escapeHtml(project.name)}</option>`

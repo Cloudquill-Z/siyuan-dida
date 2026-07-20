@@ -10,6 +10,7 @@ import { buildSettingsPanel } from "./settings/settingsPanel";
 import { SiYuanRepository } from "./siyuan/repository";
 import { setSyncTooltip } from "./syncTooltip";
 import type { SyncResult } from "./core/types";
+import { createTranslator, type Translate } from "./i18n";
 
 const STORAGE_NAME = "settings.json";
 
@@ -18,16 +19,18 @@ export default class SiyuanDidaPlugin extends Plugin {
   private syncTimer: number | undefined;
   private syncRunning = false;
   private syncButton!: HTMLElement;
+  private t!: Translate;
 
   async onload() {
+    this.t = createTranslator(window.siyuan.config?.lang ?? navigator.language);
     this.settings = normalizeSettings(await this.loadData(STORAGE_NAME));
     this.syncButton = this.addTopBar({
       icon: "iconRefresh",
-      title: "同步滴答清单",
+      title: this.t("syncDida"),
       position: "right",
       callback: () => void this.runSync()
     });
-    this.updateStatus("滴答：待同步");
+    this.updateStatus(this.t("syncPending"));
 
     this.addCommand({
       langKey: "sync-dida-now",
@@ -50,7 +53,7 @@ export default class SiyuanDidaPlugin extends Plugin {
   openSetting() {
     const mountId = `dida-sync-settings-${Date.now()}`;
     new Dialog({
-      title: "滴答同步设置",
+      title: this.t("settingsTitle"),
       content: `<div id="${mountId}"></div>`,
       width: "760px"
     });
@@ -63,6 +66,7 @@ export default class SiyuanDidaPlugin extends Plugin {
       mount.appendChild(
         buildSettingsPanel({
           settings: this.settings,
+          t: this.t,
           onSave: async (settings) => {
             this.settings = normalizeSettings(settings);
             await this.saveSettings();
@@ -94,13 +98,13 @@ export default class SiyuanDidaPlugin extends Plugin {
   private async runSync(options: { silentSkip?: boolean } = {}) {
     if (this.syncRunning) {
       if (!options.silentSkip) {
-        showMessage("滴答同步正在执行，已跳过本次触发");
+        showMessage(this.t("syncInProgress"));
       }
       return;
     }
 
     if (this.settings.ranges.length === 0) {
-      showMessage("请先在插件设置中配置同步范围", 5000, "info");
+      showMessage(this.t("configureRanges"), 5000, "info");
       return;
     }
 
@@ -109,9 +113,10 @@ export default class SiyuanDidaPlugin extends Plugin {
       const resolved = await resolveDidaCommand(getResolvedCliPathForCurrentDevice(this.settings) || this.settings.cliCommand || "dida");
       this.settings = withResolvedCliPathForCurrentDevice(this.settings, resolved.command);
       const didaGateway = new DidaCliGateway(new DidaCliClient(resolved.command));
-      const engine = new SyncEngine(new SiYuanRepository(), didaGateway);
+      const engine = new SyncEngine(new SiYuanRepository(), didaGateway, this.t);
       const result = await engine.sync({
         maxTasksPerRun: this.settings.maxTasksPerRun || DEFAULT_SETTINGS.maxTasksPerRun,
+        newTaskDate: this.settings.newTaskDate,
         ranges: this.settings.ranges
       });
       this.settings.ranges = this.settings.ranges.map((range) => ({
@@ -120,17 +125,17 @@ export default class SiyuanDidaPlugin extends Plugin {
       }));
       this.settings.logs = [result, ...this.settings.logs].slice(0, 20);
       await this.saveSettings();
-      this.updateStatus(`滴答：${new Date().toLocaleTimeString()} ${result.failed > 0 ? "有失败" : "已同步"}`);
+      this.updateStatus(result.failed > 0 ? this.t("statusFailed", { time: new Date().toLocaleTimeString() }) : this.t("statusSynced", { time: new Date().toLocaleTimeString() }));
       if (!options.silentSkip) {
-        showMessage(`滴答同步完成：${summarizeSyncLog(result)}`);
+        showMessage(this.t("syncComplete", { summary: summarizeSyncLog(result) }));
       }
     } catch (error) {
       const result = createErrorSyncResult((error as Error).message);
       this.settings.logs = [result, ...this.settings.logs].slice(0, 20);
       await this.saveSettings();
-      this.updateStatus(`滴答：${new Date().toLocaleTimeString()} 同步失败`);
+      this.updateStatus(this.t("statusFailed", { time: new Date().toLocaleTimeString() }));
       if (!options.silentSkip) {
-        showMessage(`滴答同步失败：${(error as Error).message}`, 7000, "error");
+        showMessage(this.t("syncFailed", { message: (error as Error).message }), 7000, "error");
       }
     } finally {
       this.syncRunning = false;

@@ -102,7 +102,7 @@ git commit -m "chore: release v1.1.8"
 - Verify: `dist/README_zh_CN.md`
 - Verify: `dist/icon.png`
 - Verify: `dist/preview.png`
-- Install: `/Users/lance/Documents/Siyuan/data/plugins/siyuan-dida/`
+- Install: `{workspace}/data/plugins/siyuan-dida/`
 
 **Step 1: Run required checks**
 
@@ -118,7 +118,7 @@ Expected: exits successfully.
 
 **Step 3: Install the built plugin**
 
-Run: `rm -rf /Users/lance/Documents/Siyuan/data/plugins/siyuan-dida && mkdir -p /Users/lance/Documents/Siyuan/data/plugins/siyuan-dida && cp -R dist/. /Users/lance/Documents/Siyuan/data/plugins/siyuan-dida/`
+Run: replace `{workspace}/data/plugins/siyuan-dida/` with the contents of `dist/`.
 
 Expected: the local SiYuan plugin directory contains the freshly built package.
 

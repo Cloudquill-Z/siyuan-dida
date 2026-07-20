@@ -1,4 +1,5 @@
 import { localAllDayStart } from "./date";
+import { createTranslator, type Translate } from "../i18n";
 import { taskHash } from "./hash";
 import { parseTodoMarkdown } from "./todoParser";
 import type { DidaGateway, SiYuanGateway, SyncEvent, SyncRange, SyncRangeResult, SyncResult, SyncSettings, SiYuanTodoBlock } from "./types";
@@ -10,7 +11,6 @@ const LAST_HASH_ATTR = "custom-dida-last-hash";
 const SYNC_STATE_ATTR = "custom-dida-sync-state";
 const SYNC_STATE_SYNCED = "synced";
 const SYNC_STATE_COMPLETED_SYNCED = "completed-synced";
-const DIDA_TASK_SOURCE_CONTENT = "来源：思源笔记";
 
 interface TaskBinding {
   taskId: string;
@@ -81,23 +81,24 @@ function attrsFor(taskId: string, projectId: string, hash: string, syncState = S
 export class SyncEngine {
   constructor(
     private readonly siyuan: SiYuanGateway,
-    private readonly dida: DidaGateway
+    private readonly dida: DidaGateway,
+    private readonly t: Translate = createTranslator("zh-CN")
   ) {}
 
   async sync(settings: SyncSettings): Promise<SyncResult> {
     const result = emptyResult();
     const projectIds = settings.ranges.map((range) => range.targetProjectId).filter(Boolean);
-    addEvent(result, "info", `开始同步：范围 ${settings.ranges.length} 个，最大处理 ${settings.maxTasksPerRun} 个`);
+    addEvent(result, "info", this.t("syncStarted", { ranges: settings.ranges.length, max: settings.maxTasksPerRun }));
     let completedTaskIds = new Set<string>();
     try {
       completedTaskIds = await this.dida.listCompletedTaskIds(projectIds);
-      addEvent(result, "debug", `读取滴答已完成任务 ${completedTaskIds.size} 个`);
+      addEvent(result, "debug", this.t("completedTasksLoaded", { count: completedTaskIds.size }));
     } catch (error) {
       result.failed += 1;
       result.failures.push({
-        message: `滴答已完成任务读取失败，已跳过滴答到思源回写：${(error as Error).message}`
+        message: this.t("completedTasksLoadFailed", { message: (error as Error).message })
       });
-      addEvent(result, "warn", `滴答已完成任务读取失败，已跳过回写：${(error as Error).message}`);
+      addEvent(result, "warn", this.t("completedTasksLoadFailed", { message: (error as Error).message }));
     }
 
     for (const range of settings.ranges) {
@@ -107,7 +108,7 @@ export class SyncEngine {
       let rotatingCount = page.rotatingCount;
       let rotatingLimit = page.rotatingLimit;
       if (rotatingCount === 0 && cursorOffset > 0) {
-        addEvent(result, "debug", `范围「${range.name}」游标已到末尾，回到开头继续扫描`, { rangeId: range.id });
+        addEvent(result, "debug", this.t("rangeRestarted", { range: range.name }), { rangeId: range.id });
         cursorOffset = 0;
         blocks = await this.siyuan.listTodoBlocks(range, settings.maxTasksPerRun, cursorOffset);
         rotatingCount = blocks.length;
@@ -134,7 +135,7 @@ export class SyncEngine {
       result.rangeCursorOffsets[range.id] = nextCursorOffset;
       result.scanned += blocks.length;
       result.rangeResults.push(rangeResult);
-      addEvent(result, "info", `范围「${range.name}」扫描到 ${blocks.length} 个候选任务`, { rangeId: range.id });
+      addEvent(result, "info", this.t("rangeScanned", { range: range.name, count: blocks.length }), { rangeId: range.id });
       const orderedBlocks = orderBlocksForParentSync(blocks);
       const context: RangeSyncContext = {
         blocksById: new Map(blocks.map((block) => [block.id, block])),
@@ -145,12 +146,12 @@ export class SyncEngine {
         )
       };
       for (const block of orderedBlocks) {
-        await this.syncBlock(block, range.targetProjectId, completedTaskIds, result, rangeResult, context);
+        await this.syncBlock(block, range.targetProjectId, completedTaskIds, result, rangeResult, context, settings.newTaskDate ?? "today");
       }
       addEvent(
         result,
         "debug",
-        hasMore ? `范围「${range.name}」下一轮从第 ${nextCursorOffset + 1} 个候选任务继续` : `范围「${range.name}」已扫到末尾，下轮从开头继续`,
+        hasMore ? this.t("rangeNextCursor", { range: range.name, cursor: nextCursorOffset + 1 }) : this.t("rangeComplete", { range: range.name }),
         { rangeId: range.id }
       );
     }
@@ -159,7 +160,14 @@ export class SyncEngine {
     addEvent(
       result,
       result.failed > 0 ? "warn" : "info",
-      `同步结束：扫描 ${result.scanned}，新增 ${result.created}，更新 ${result.updated}，完成 ${result.completed}，回写 ${result.writtenBack}，失败 ${result.failed}`
+      this.t("syncFinished", {
+        scanned: result.scanned,
+        created: result.created,
+        updated: result.updated,
+        completed: result.completed,
+        writtenBack: result.writtenBack,
+        failed: result.failed
+      })
     );
     return result;
   }
@@ -170,14 +178,15 @@ export class SyncEngine {
     completedTaskIds: Set<string>,
     result: SyncResult,
     rangeResult: SyncRangeResult,
-    context: RangeSyncContext
+    context: RangeSyncContext,
+    newTaskDate: "today" | "none"
   ) {
     try {
       const parsed = parseTodoMarkdown(block.markdown);
       if (!parsed) {
         result.skipped += 1;
         rangeResult.skipped += 1;
-        addEvent(result, "debug", "跳过非待办块", { blockId: block.id, rangeId: rangeResult.rangeId });
+        addEvent(result, "debug", this.t("skippedNonTodo"), { blockId: block.id, rangeId: rangeResult.rangeId });
         return;
       }
 
@@ -188,7 +197,7 @@ export class SyncEngine {
         if (parsed.checked) {
           result.skipped += 1;
           rangeResult.skipped += 1;
-          addEvent(result, "debug", `跳过未绑定的历史已完成任务：${parsed.title}`, {
+          addEvent(result, "debug", this.t("skippedLegacyCompleted", { title: parsed.title }), {
             blockId: block.id,
             rangeId: rangeResult.rangeId
           });
@@ -198,17 +207,19 @@ export class SyncEngine {
         if (parent.hasParent && !parent.binding) {
           result.skipped += 1;
           rangeResult.skipped += 1;
-          addEvent(result, "debug", `跳过未绑定父任务下的新子任务：${parsed.title}`, {
+          addEvent(result, "debug", this.t("skippedUnboundChild", { title: parsed.title }), {
             blockId: block.id,
             rangeId: rangeResult.rangeId
           });
           return;
         }
-        const created = await this.dida.createTask(targetProjectId, parsed.title, {
-          content: DIDA_TASK_SOURCE_CONTENT,
-          allDay: true,
-          startDate: localAllDayStart()
-        });
+        const created = await this.dida.createTask(
+          targetProjectId,
+          parsed.title,
+          newTaskDate === "today"
+            ? { content: this.t("sourceContent"), allDay: true, startDate: localAllDayStart() }
+            : { content: this.t("sourceContent") }
+        );
         if (parent.binding) {
           await this.dida.setTaskParent(created.projectId, created.id, parent.binding.taskId);
         }
@@ -216,7 +227,7 @@ export class SyncEngine {
         context.knownBindings.set(block.id, { taskId: created.id, projectId: created.projectId });
         result.created += 1;
         rangeResult.created += 1;
-        addEvent(result, "info", `创建滴答任务：${parsed.title}`, { blockId: block.id, rangeId: rangeResult.rangeId });
+        addEvent(result, "info", this.t("taskCreated", { title: parsed.title }), { blockId: block.id, rangeId: rangeResult.rangeId });
         return;
       }
 
@@ -225,21 +236,21 @@ export class SyncEngine {
         await this.siyuan.setBlockAttrs(block.id, attrsFor(existing.taskId, existing.projectId, taskHash(parsed.title, true), SYNC_STATE_COMPLETED_SYNCED));
         result.writtenBack += 1;
         rangeResult.writtenBack += 1;
-        addEvent(result, "info", `滴答完成回写思源：${parsed.title}`, { blockId: block.id, rangeId: rangeResult.rangeId });
+        addEvent(result, "info", this.t("didaCompletionWrittenBack", { title: parsed.title }), { blockId: block.id, rangeId: rangeResult.rangeId });
         return;
       }
 
       if (block.attrs[LAST_HASH_ATTR] === currentHash) {
         if (parsed.checked && block.attrs[SYNC_STATE_ATTR] !== SYNC_STATE_COMPLETED_SYNCED) {
           await this.siyuan.setBlockAttrs(block.id, attrsFor(existing.taskId, existing.projectId, currentHash, SYNC_STATE_COMPLETED_SYNCED));
-          addEvent(result, "debug", `归档已完成同步任务：${parsed.title}`, {
+          addEvent(result, "debug", this.t("completedTaskArchived", { title: parsed.title }), {
             blockId: block.id,
             rangeId: rangeResult.rangeId
           });
         }
         result.skipped += 1;
         rangeResult.skipped += 1;
-        addEvent(result, "debug", `跳过未变化的已绑定任务：${parsed.title}`, {
+        addEvent(result, "debug", this.t("skippedUnchanged", { title: parsed.title }), {
           blockId: block.id,
           rangeId: rangeResult.rangeId
         });
@@ -251,7 +262,7 @@ export class SyncEngine {
         await this.siyuan.setBlockAttrs(block.id, attrsFor(existing.taskId, existing.projectId, currentHash, SYNC_STATE_COMPLETED_SYNCED));
         result.completed += 1;
         rangeResult.completed += 1;
-        addEvent(result, "info", `思源完成同步到滴答：${parsed.title}`, { blockId: block.id, rangeId: rangeResult.rangeId });
+        addEvent(result, "info", this.t("siyuanCompletionSynced", { title: parsed.title }), { blockId: block.id, rangeId: rangeResult.rangeId });
         return;
       }
 
@@ -260,7 +271,7 @@ export class SyncEngine {
         await this.siyuan.setBlockAttrs(block.id, attrsFor(existing.taskId, existing.projectId, currentHash));
         result.updated += 1;
         rangeResult.updated += 1;
-        addEvent(result, "info", `更新滴答任务标题：${parsed.title}`, { blockId: block.id, rangeId: rangeResult.rangeId });
+        addEvent(result, "info", this.t("taskUpdated", { title: parsed.title }), { blockId: block.id, rangeId: rangeResult.rangeId });
       }
     } catch (error) {
       result.failed += 1;

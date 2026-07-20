@@ -2,6 +2,15 @@ import { describe, expect, test } from "vitest";
 import { DEFAULT_SETTINGS, normalizeSettings, settingsForSave } from "./defaults";
 
 describe("settingsForSave", () => {
+  test("defaults legacy settings to creating new tasks with today's date", () => {
+    const settings = normalizeSettings({
+      ...DEFAULT_SETTINGS,
+      newTaskDate: undefined
+    });
+
+    expect(settings.newTaskDate).toBe("today");
+  });
+
   test("keeps a resolved CLI path when the configured command is unchanged", () => {
     const current = normalizeSettings({
       ...DEFAULT_SETTINGS,

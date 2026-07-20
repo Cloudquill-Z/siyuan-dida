@@ -14,7 +14,7 @@ export default defineConfig({
       writeBundle() {
         const outDir = join(__dirname, "dist");
         mkdirSync(outDir, { recursive: true });
-        for (const file of ["plugin.json", "README.md", "README_zh_CN.md", "icon.png", "preview.png"]) {
+        for (const file of ["plugin.json", "README.md", "README.zh-CN.md", "icon.png", "preview.png"]) {
           const src = join(__dirname, file);
           if (existsSync(src)) {
             copyFileSync(src, join(outDir, file));

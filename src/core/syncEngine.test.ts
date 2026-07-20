@@ -116,6 +116,26 @@ describe("SyncEngine", () => {
     expect(siyuan.attrs[0].attrs["custom-dida-task-id"]).toBe("task-1");
   });
 
+  test("creates an undated Dida task when the setting disables a default date", async () => {
+    const siyuan = new FakeSiYuan([block({})]);
+    const dida = new FakeDida();
+
+    await new SyncEngine(siyuan, dida).sync({
+      ...settings(),
+      newTaskDate: "none"
+    });
+
+    expect(dida.created).toEqual([
+      {
+        projectId: "project-1",
+        title: "整理会议纪要",
+        options: {
+          content: "来源：思源笔记"
+        }
+      }
+    ]);
+  });
+
   test("creates new child todos under their newly created Dida parent task", async () => {
     const siyuan = new FakeSiYuan([
       block({ id: "child-block", parentId: "parent-block", markdown: "- [ ] 子任务" }),
